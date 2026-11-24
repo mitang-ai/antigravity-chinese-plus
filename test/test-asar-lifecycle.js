@@ -265,6 +265,81 @@ contextBridge.exposeInMainWorld('api', { version: 'D_OFFICIAL_NEW_PRISTINE' });
   assert(fs.existsSync(pluginMarker) && fs.readFileSync(pluginMarker, 'utf8') === pluginManifest,
     '指定 --path 的还原保持全局插件文件不变');
 
+  // 10. 【阶段 7】staged 指纹校验防官方升级倒退、写元数据异常原子回滚、受保护环境防强杀与纯 VS Code 扩展安装向导
+  console.log('\n📦 【阶段 7】验证 staged 来源指纹防降级、写失败回滚、防强杀保护与纯 VS Code 场景...');
+  const { commitStagedSwap, manualInstall } = require('../cli');
+
+  // 7a. 模拟旧版 B 的 staged 残留，但磁盘 app.asar 已被官方静默升级成新版 E
+  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
+  const oldAsarFp = getAsarFingerprint(asarPath);
+  const stagedPath = path.join(resourcesDir, 'app.asar.staged');
+  const stagedMetaPath = path.join(resourcesDir, 'app.asar.staged.meta.json');
+  fs.writeFileSync(stagedPath, 'STALE_OLD_PATCHED_BYTES', 'utf8');
+  fs.writeFileSync(stagedMetaPath, JSON.stringify({
+    sourceFingerprint: oldAsarFp,
+    stagedFingerprint: getAsarFingerprint(stagedPath),
+    timestamp: Date.now()
+  }), 'utf8');
+
+  // 模拟官方静默升级为全新版本 E
+  const origPreloadE = `"use strict";\n// Upstream official E\n`;
+  fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadE, 'utf8');
+  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
+  const fpE = getAsarFingerprint(asarPath);
+
+  const staleRes = commitStagedSwap(asarPath);
+  assert(staleRes.status === 'stale', 'staged 与官方新版 E 指纹不匹配时返回 stale');
+  assert(!fs.existsSync(stagedPath) && !fs.existsSync(stagedMetaPath), '过期 staged 及元数据必须自动清理');
+  assert(getAsarFingerprint(asarPath) === fpE, '过期 staged 绝不覆盖官方新版 E');
+
+  // 7b. 模拟来源匹配但写元数据阶段失败时的原子回滚
+  const validStagedBytes = Buffer.from('VALID_STAGED_PACKAGE_PAYLOAD');
+  fs.writeFileSync(stagedPath, validStagedBytes);
+  fs.writeFileSync(stagedMetaPath, JSON.stringify({
+    sourceFingerprint: fpE,
+    stagedFingerprint: getAsarFingerprint(stagedPath),
+    timestamp: Date.now()
+  }), 'utf8');
+  const failRes = commitStagedSwap(asarPath, {
+    maxAttempts: 1,
+    onBeforeWriteMeta: () => { throw new Error('Simulated metadata write failure'); }
+  });
+  assert(failRes.status === 'error', '写元数据异常时返回 error 状态');
+  assert(getAsarFingerprint(asarPath) === fpE, '写入元数据异常时必须自动回滚保留原版 E');
+  assert(fs.existsSync(stagedPath), '失败回滚后 staged 保持完整不丢失');
+  fs.rmSync(stagedPath, { force: true });
+  fs.rmSync(stagedMetaPath, { force: true });
+
+  // 7c. 受保护环境 (AGY_NO_KILL=1) 下传入 'y' 绝不触发强杀，只等待正常退出
+  let loopChecks = 0;
+  let answerIdx = 0;
+  const answers = ['y', 'q'];
+  const prevNoKill = process.env.AGY_NO_KILL;
+  process.env.AGY_NO_KILL = '1';
+  try {
+    manualInstall(testDir, {
+      isProcessRunning: () => { loopChecks++; return true; },
+      readLine: () => answers[answerIdx++] || 'q'
+    });
+    assert(loopChecks >= 2 && answerIdx === 2, 'AGY_NO_KILL=1 下即使用户输入 y 也禁止强杀并等待正常退出或取消');
+  } finally {
+    if (prevNoKill === undefined) delete process.env.AGY_NO_KILL;
+    else process.env.AGY_NO_KILL = prevNoKill;
+  }
+
+  // 7d. 只有 VS Code 扩展（无桌面版 app.asar）时的手动安装支持
+  let vsPatchedCalled = false;
+  manualInstall(null, {
+    findAsarPath: () => null,
+    findVsCodeExtensionDir: () => path.join(testDir, 'mock_vscode_ext'),
+    readLine: () => '',
+    installVsCodePatch: (dir) => {
+      vsPatchedCalled = dir.endsWith('mock_vscode_ext');
+      return { success: true, message: 'ok' };
+    }
+  });
+  assert(vsPatchedCalled, '无桌面版但存在 VS Code 扩展时，手动向导直接放行并安装 VS Code 扩展汉化');
+
 } finally {
   // 清理测试临时目录
   if (fs.existsSync(testDir)) {

@@ -26,3 +26,12 @@
 - `npm run audit`：45 项全链路静态一致性检查全部通过。
 - `npm test`：全套 13 个测试入口全部通过（含 JSDOM 内容边界、Swarm 面板、ASAR 生命周期、词库质检等）。
 - 本机安装：在受保护智能体会话下通过无损预注入模式生成 `app.asar.staged` 与后台替换守候进程，待用户重启客户端后完成实机界面生效；VS Code 扩展未在本机安装，未作实机检查；macOS/Linux 范围为跨平台自动化回归。
+
+## v3.4.2 边界修复与生命周期加固
+
+针对社区审查中指出的 4 项生命周期与边界漏洞完成专项修复与自动化回归：
+
+1. **防过期 `app.asar.staged` 降级与原子回滚**：预构建时生成 `app.asar.staged.meta.json` 绑定 `sourceFingerprint` 与 `stagedFingerprint`；替换阶段统一走 `commitStagedSwap()` 校验磁盘 `app.asar` 指纹，若官方已升级则判为 `stale` 并清理过期包，写元数据异常时自动回滚恢复原包。
+2. **保护受限会话禁强杀边界**：`manualInstall()` 严格遵循 `isProtectedEnvironment()`，在 `AGY_NO_KILL=1` 或智能体会话中彻底禁用交互强杀分支。
+3. **纯 VS Code 扩展用户安装通路**：`manualInstall()` 同时探测 `asarPath` 与 `vsExtDir`，无桌面端仅装有 VS Code 扩展时允许直接安装扩展补丁，不再死循环阻塞。
+4. **斜杠菜单 `dir="rtl"` 保护与高亮动态重译**：`isProtectedBoundary()` 显式保护 `[data-testid="menu-option-description"][dir="rtl"]`，防止单节点路径如 `Before` 误译；`translateElement()` 与 `recordMutations()` 统一处理单/多高亮节点及动态替换恢复。

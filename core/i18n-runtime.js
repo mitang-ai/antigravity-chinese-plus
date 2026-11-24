@@ -378,6 +378,7 @@
     if (isModelSelectorBoundary(el)) return true;
 
     var testId = el.getAttribute('data-testid');
+    if (testId === 'menu-option-description' && el.getAttribute('dir') === 'rtl') return true;
     if ((CONTENT_TEST_IDS[testId] === 1 && !isCustomizationBreadcrumb(el)) || el.hasAttribute('data-ag-localization-skip') ||
         el.hasAttribute('data-markdown-root')) return true;
     if (el.hasAttribute('data-uri') && el.hasAttribute('data-quotable-inline')) return true;
@@ -1043,7 +1044,7 @@
           menuTextNodes.push(mt);
           mt = menuWalker.nextNode();
         }
-        if (menuTextNodes.length > 1) {
+        if (menuTextNodes.length >= 1) {
           var menuSource = '';
           var hadMenuEdit = false;
           for (var mti = 0; mti < menuTextNodes.length; mti++) {
@@ -1055,9 +1056,28 @@
           var menuNormalized = normalizeWhitespace(menuSource);
           var menuTrans = menuNormalized ? translateUiText(menuNormalized, el) : null;
           if (menuTrans && menuTrans !== menuNormalized) {
-            writeLocalizedText(menuTextNodes[0], menuTrans, 'menu-description');
-            for (var mtj = 1; mtj < menuTextNodes.length; mtj++) {
-              writeLocalizedText(menuTextNodes[mtj], '', 'menu-description');
+            // 若命中 3 段高亮结构且译文原样保留了高亮关键词（如 Boost / Swarm / MCP），则将高亮精准落回中间高亮节点
+            var placedWithHighlight = false;
+            if (menuTextNodes.length === 3) {
+              var hlText = (textEdits.get(menuTextNodes[1])?.localized === menuTextNodes[1].nodeValue
+                ? textEdits.get(menuTextNodes[1]).source
+                : menuTextNodes[1].nodeValue) || '';
+              var hlTrim = hlText.trim();
+              if (hlTrim && hlTrim.length >= 2) {
+                var hlPos = menuTrans.indexOf(hlTrim);
+                if (hlPos !== -1) {
+                  writeLocalizedText(menuTextNodes[0], menuTrans.slice(0, hlPos), 'menu-description');
+                  writeLocalizedText(menuTextNodes[1], hlTrim, 'menu-description');
+                  writeLocalizedText(menuTextNodes[2], menuTrans.slice(hlPos + hlTrim.length), 'menu-description');
+                  placedWithHighlight = true;
+                }
+              }
+            }
+            if (!placedWithHighlight) {
+              writeLocalizedText(menuTextNodes[0], menuTrans, 'menu-description');
+              for (var mtj = 1; mtj < menuTextNodes.length; mtj++) {
+                writeLocalizedText(menuTextNodes[mtj], '', 'menu-description');
+              }
             }
             return;
           } else if (hadMenuEdit) {
@@ -1306,6 +1326,13 @@
       var mutation = mutations[i];
       if (mutation.type === 'childList') {
         enqueuePermissionPresetDependents(mutation.target);
+        var menuDescTarget = mutation.target && mutation.target.closest
+          ? mutation.target.closest('[data-testid="menu-option-description"]:not([dir="rtl"]), [data-testid="hover-card-description"]')
+          : null;
+        if (menuDescTarget) {
+          menuDescTarget._agyScanId = 0;
+          enqueueNode(menuDescTarget);
+        }
         var added = mutation.addedNodes;
         for (var j = 0; j < added.length; j++) {
           var child = added[j];
@@ -1319,7 +1346,15 @@
         // Writes made while observing belong to the renderer, even when the value is unchanged.
         textEdits.delete(mutation.target);
         mutation.target._agyOriginal = undefined;
-        enqueueNode(mutation.target);
+        var menuCharParent = mutation.target.parentElement && mutation.target.parentElement.closest
+          ? mutation.target.parentElement.closest('[data-testid="menu-option-description"]:not([dir="rtl"]), [data-testid="hover-card-description"]')
+          : null;
+        if (menuCharParent) {
+          menuCharParent._agyScanId = 0;
+          enqueueNode(menuCharParent);
+        } else {
+          enqueueNode(mutation.target);
+        }
       } else if (mutation.type === 'attributes') {
         var edits = attributeEdits.get(mutation.target);
         if (edits) delete edits[mutation.attributeName];

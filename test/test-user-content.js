@@ -1636,3 +1636,46 @@ test('2.35 marketplace categories, browsing data modal and settings localize wit
   assert.deepEqual([...document.querySelectorAll('section[data-testid="user-message-content"] p')].map(el => el.textContent), ['Clear Browsing Data?', 'Prevent sleep']);
   assert.deepEqual([...document.querySelectorAll('#settings-panel span')].map(el => el.textContent), ['阻止系统休眠', '保持在菜单栏/托盘', '清除浏览数据？']);
 });
+
+test('2.35 slash menu preserves dir=rtl Before paths and dynamically retranslates across search highlight splits', async t => {
+  const { document, window } = await fixture(t, `
+    <div role="listbox" data-mention-menu="">
+      <div role="option" id="opt-plan">
+        <span data-testid="menu-option-label">plan</span>
+        <span data-testid="menu-option-description" dir="auto">Plan carefully before executing a task.</span>
+      </div>
+      <div role="option" id="opt-boost">
+        <span data-testid="menu-option-label">boost</span>
+        <span data-testid="menu-option-description" dir="auto">Invoke the Boost multi-agent orchestrator for complex tasks.</span>
+      </div>
+      <div role="option" id="opt-rtl-single">
+        <span data-testid="menu-option-label">Before</span>
+        <span data-testid="menu-option-description" dir="rtl">Before</span>
+      </div>
+    </div>`);
+  const planDesc = document.querySelector('#opt-plan [data-testid="menu-option-description"]');
+  const boostDesc = document.querySelector('#opt-boost [data-testid="menu-option-description"]');
+  const rtlDesc = document.querySelector('#opt-rtl-single [data-testid="menu-option-description"]');
+
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(rtlDesc.textContent, 'Before');
+
+  // 1. 输入搜索词导致描述动态替换为 3 个高亮 <span>，Observer 自动重算整行保持中文
+  planDesc.innerHTML = '<span>Plan carefully before executing a </span><span class="hl">task</span><span>.</span>';
+  boostDesc.innerHTML = '<span>Invoke the </span><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span>';
+  await settle(window);
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(planDesc.querySelectorAll('span').length, 3);
+  // 若译文中保留原样英文关键词（如 Boost），高亮 span 应精准承载该关键词
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(boostDesc.querySelector('span.hl').textContent, 'Boost');
+
+  // 2. 清空搜索词恢复单文本节点，译文继续保持正常
+  planDesc.textContent = 'Plan carefully before executing a task.';
+  boostDesc.textContent = 'Invoke the Boost multi-agent orchestrator for complex tasks.';
+  await settle(window);
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(rtlDesc.textContent, 'Before');
+});
