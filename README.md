@@ -6,7 +6,7 @@
 
 <p>
   <a href="https://github.com/mitang-ai/antigravity-chinese-plus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitang-ai/antigravity-chinese-plus/ci.yml?branch=main&amp;label=CI&amp;logo=github" alt="CI 构建状态"></a>
-  <img src="https://img.shields.io/badge/Version-v3.4.0-2563eb" alt="当前版本 v3.4.0">
+  <img src="https://img.shields.io/badge/Version-v3.4.1-2563eb" alt="当前版本 v3.4.1">
   <img src="https://img.shields.io/badge/Antigravity_App-2.35.0-10b981" alt="适配 Antigravity 2.35.0">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-475569" alt="支持平台 Windows macOS Linux">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18-16a34a?logo=node.js" alt="需要 Node.js 18 及以上">
@@ -24,7 +24,7 @@
 
 </div>
 
-Google Antigravity（反重力）目前没有官方中文界面，且扩展市场详情页和部分内置指令高度依赖动态下发内容。本项目是一套纯源码分发的本地中文本地化工具：在保留官方原版纯净备份的前提下，为桌面客户端与 VS Code 扩展补齐 **5,069 条**界面词典、**`/` 斜杠指令说明**以及内置的 **Google 免费实时翻译插件**，做到日常使用和点开扩展详情页都能顺畅阅读中文。
+Google Antigravity（反重力）目前没有官方中文界面，且扩展市场详情页和部分内置指令高度依赖动态下发内容。本项目是一套纯源码分发的本地中文本地化工具：在保留官方原版纯净备份的前提下，为桌面客户端与 VS Code 扩展补齐 **5,092 条**界面词典、**`/` 斜杠指令说明**以及内置的 **Google 免费实时翻译插件**，做到日常使用和点开扩展详情页都能顺畅阅读中文。
 
 > **核心承诺**：本仓库仅提供开源脚本与词库源码，不打包任何官方专有二进制文件，不收集或上传任何用户对话、凭据或代码隐私。
 
@@ -46,7 +46,7 @@ Google Antigravity（反重力）目前没有官方中文界面，且扩展市�
 
 | 区域 / 场景 | 处理机制 | 说明与安全约束 |
 | --- | --- | --- |
-| 设置、侧栏、权限、Swarm 面板、引导页 | 静态精确词典 + 级联正则 | 5,069 条词条与 445 组正则，命中即毫秒级生效 |
+| 设置、侧栏、权限、Swarm 面板、引导页 | 静态精确词典 + 级联正则 | 5,092 条词条与 445 组正则，命中即毫秒级生效 |
 | `/` 斜杠指令菜单与内置技能说明 | 静态词典 + 实时翻译兜底 | 仅翻译右侧说明文字；命令名、路径（`dir="rtl"`）及功能闭包保持原样 |
 | 原生菜单、托盘、断连页、设备弹窗 | Electron 主进程壳层补丁 | 覆盖菜单栏、右键菜单、`disconnectedPage`、`deviceChooser`、`signInCallback` 等 |
 | 自定义扩展详情页与技能 README | Google 免费实时翻译 + 本地持久化 | 保护 `<pre>` 与行内 `<code>`；支持悬浮条一键「查看原文 / 切回译文」与开关 |
@@ -156,7 +156,7 @@ Google Antigravity（反重力）目前没有官方中文界面，且扩展市�
 每次词库更新或引擎修改均可在本仓库本地验证后再发布。
 
 - **当前验证数据（Windows x64 · Antigravity App 2.35.0）**：
-  - `npm run build:dict`：编译产出 **5,069** 条精确词条与 **445** 组级联正则（[dict/zh-CN.json](dict/zh-CN.json) & [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json)）。
+  - `npm run build:dict`：编译产出 **5,092** 条精确词条与 **445** 组级联正则（[dict/zh-CN.json](dict/zh-CN.json) & [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json)）。
   - `npm test`（**聚合 14 套自动化测试**）：涵盖语法编译门禁、UI 黄金语义、JSDOM 内容保护边界、Swarm 面板隔离、性能扫描基准、ASAR 升级与断电回滚生命周期、VS Code 微代理补丁，以及 Google 实时翻译与斜杠高亮专项测试，最后串联 `tools/ultimate-consistency-audit.js`（45 项静态一致性检查）。
   - 实机适配依据见 [2.35.0 维护记录](docs/maintenance/antigravity-2.35.0.md)；`macOS`、`Linux` 及 `VS Code` 扩展部分在本轮中的验证范围为跨平台自动化回归与脚本链路核验。
 

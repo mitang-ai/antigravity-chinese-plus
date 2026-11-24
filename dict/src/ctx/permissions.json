@@ -439,5 +439,7 @@
   "Microphone blocked": "麦克风已被阻止",
   "1. Accessibility": "1. 辅助功能",
   "2. Screen Recording": "2. 屏幕录制",
-  "Failed to start screen recording": "启动屏幕录制失败"
+  "Failed to start screen recording": "启动屏幕录制失败",
+  "Permissions cannot be changed while the agent is running": "智能体运行期间无法更改权限",
+  "Remote Permissions": "远程权限"
 }

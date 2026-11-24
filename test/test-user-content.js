@@ -9,6 +9,111 @@ const dictionary = require('../dict/zh-CN.json');
 const officialPluginDescriptions = require('../dict/scoped/official-plugin-descriptions.json');
 const { installOfficialPluginDescriptionSourceCheck } = require('../core/official-plugin-description-source');
 
+test('2.35 automation form translates display text and preserves the draft and option names', async t => {
+  const placeholder = 'What should the agent do on each run? For example: summarize new bugs assigned to me and anything that changed overnight.';
+  const { document } = await fixture(t, `
+    <main data-testid="new-sidecar-modal" data-kind="local">
+      <input data-testid="new-sidecar-name" placeholder="Untitled" value="Instructions">
+      <span data-testid="new-sidecar-title-required"><span aria-hidden="true"></span>Required</span>
+      <span id="summary">Uses your local files and tools. Schedules only.</span>
+      <h2 id="trigger">Trigger</h2>
+      <div data-testid="automation-schedule-editor">
+        <span class="text-muted-foreground select-none" id="at">at</span>
+        <button data-testid="schedule-time" value="9:0">9:00 AM</button>
+      </div>
+      <h2 id="instructions">Instructions</h2>
+      <textarea data-testid="new-sidecar-prompt" placeholder="${placeholder}">Required</textarea>
+    </main>
+    <span class="text-muted-foreground select-none" id="outside">at</span>
+    <div data-select-popup role="listbox">
+      <div role="option" data-value="system">System UI</div>
+      <div role="option" data-value="inter">Inter</div>
+      <div role="option" data-value="google-sans">Google Sans</div>
+      <div role="option" data-value="Legacy Dark">Legacy Dark</div>
+      <div role="option" data-value="Legacy Light">Legacy Light</div>
+      <div role="option" data-value="Solarized Dark">Solarized Dark</div>
+    </div>`);
+  const text = selector => document.querySelector(selector).textContent;
+  assert.equal(text('[data-testid="new-sidecar-title-required"]'), '必填');
+  assert.equal(text('#summary'), '使用本机文件和工具，仅支持定时运行。');
+  assert.equal(text('#trigger'), '触发条件');
+  assert.equal(text('#at'), '于');
+  assert.equal(text('#outside'), 'at');
+  assert.equal(text('#instructions'), '执行指令');
+  assert.equal(document.querySelector('input').value, 'Instructions');
+  assert.equal(document.querySelector('textarea').value, 'Required');
+  assert.match(document.querySelector('textarea').placeholder, /^智能体每次运行时应做什么？/);
+  assert.equal(document.querySelector('[data-testid="schedule-time"]').value, '9:0');
+  assert.deepEqual([...document.querySelectorAll('[role="option"]')].map(el => [el.dataset.value, el.textContent]), [
+    ['system', '系统界面字体'], ['inter', 'Inter'], ['google-sans', 'Google Sans'],
+    ['Legacy Dark', '旧版深色'], ['Legacy Light', '旧版浅色'], ['Solarized Dark', 'Solarized Dark']
+  ]);
+});
+
+test('2.35 sentence case setting titles and split plan labels localize without changing user text', async t => {
+  const cases = [
+    ['Prevent sleep', '阻止系统休眠'],
+    ['Keep in menu bar', '保持在菜单栏/托盘'],
+    ['Device name', '设备名称'],
+    ['Notification settings', '通知设置'],
+    ['Conversation steps', '对话步骤'],
+    ['Font size', '字体大小'],
+    ['Conversation width', '对话面板宽度'],
+    ['Screen reader mode', '屏幕阅读器模式'],
+    ['Enable notifications for agent', '启用智能体系统通知'],
+    ['Enable sounds for agent', '启用智能体提示音'],
+    ['Enable AI credit overages', '启用超额 AI 积分计费'],
+    ['Open links in', '链接打开方式'],
+    ['Download location', '下载位置'],
+    ['Browsing history', '浏览历史'],
+    ['Browser actuation rules', '浏览器操作执行规则'],
+    ['Enable telemetry', '启用遥测诊断'],
+    ['Marketing emails', '营销与产品动态邮件']
+  ];
+  const { document } = await fixture(t, `
+    <div class="settings-modal-container">
+      ${cases.map(([source]) => `<div class="font-medium setting-label">${source}</div>`).join('')}
+      <div id="plan-account" class="font-medium">Your plan: Google AI Pro</div>
+      <div id="plan-models" class="font-medium">Your plan: <!-- -->Enterprise Custom</div>
+      <div id="plan-unknown" class="font-medium">Your plan</div>
+      <div class="prose" id="quoted">Font size</div>
+    </div>
+    <div role="menuitem"><div id="environment">Runs on this machine</div></div>
+    <div id="outside" class="font-medium">Your plan: Google AI Pro</div>
+    <div data-testid="user-input-step">Prevent sleep</div>`);
+  assert.deepEqual([...document.querySelectorAll('.setting-label')].map(el => el.textContent), cases.map(([, expected]) => expected));
+  assert.equal(document.querySelector('#plan-account').textContent, '当前方案：Google AI Pro');
+  assert.match(document.querySelector('#plan-models').textContent, /^当前方案： *Enterprise Custom$/);
+  assert.equal(document.querySelector('#plan-unknown').textContent, '当前方案');
+  assert.equal(document.querySelector('#environment').textContent, '在此电脑上运行');
+  assert.equal(document.querySelector('#quoted').textContent, 'Font size');
+  assert.equal(document.querySelector('#outside').textContent, 'Your plan: Google AI Pro');
+  assert.equal(document.querySelector('[data-testid="user-input-step"]').textContent, 'Prevent sleep');
+});
+
+test('2.35 queued status and locked permission labels translate without changing task names', async t => {
+  const { document, window } = await fixture(t, `
+    <button data-testid="permissions-selector-trigger" aria-disabled="true"
+      aria-label="Agent permissions preset: Default, Permissions cannot be changed while the agent is running"><span>Default</span></button>
+    <div role="region" aria-label="Queued messages"><span data-testid="queued-messages-status" title="Waiting on Settings">Waiting on Settings</span></div>
+    <div class="prose"><span title="Waiting on Settings">Waiting on Settings</span></div>
+    <div role="status">Message queued. Sends after background work finishes. Actions available: Send Now, Edit, Delete.</div>`);
+  const trigger = document.querySelector('button');
+  assert.equal(trigger.getAttribute('aria-label'), '智能体权限预设：默认，智能体运行期间无法更改权限');
+  const status = document.querySelector('[data-testid="queued-messages-status"]');
+  assert.equal(status.textContent, '正在等待 Settings');
+  assert.equal(status.title, '正在等待 Settings');
+  assert.equal(document.querySelector('.prose span').textContent, 'Waiting on Settings');
+  assert.equal(document.querySelector('.prose span').title, 'Waiting on Settings');
+  assert.equal(document.querySelector('[role="status"]').textContent, '消息已排队，后台工作完成后发送。可立即发送、编辑或删除。');
+
+  status.textContent = 'Waiting on Default and Local';
+  status.title = status.textContent;
+  await settle(window);
+  assert.equal(status.textContent, '正在等待 Default and Local');
+  assert.equal(status.title, '正在等待 Default and Local');
+});
+
 test('2.34 conversation permission presets translate labels and accessible names without changing values or authored text', async t => {
   const { document, window } = await fixture(t, `
     <button data-testid="permissions-selector-trigger" aria-label="Agent permissions preset selector, current: Auto"><span>Auto</span></button>
@@ -1529,5 +1634,5 @@ test('2.35 marketplace categories, browsing data modal and settings localize wit
   assert.equal(document.querySelector('[data-testid="customizations-marketplace"] button').textContent, '在效率与协作中查看更多');
   assert.deepEqual([...document.querySelectorAll('#ordinary-words span')].map(el => el.textContent), ['Design', 'Cloud']);
   assert.deepEqual([...document.querySelectorAll('section[data-testid="user-message-content"] p')].map(el => el.textContent), ['Clear Browsing Data?', 'Prevent sleep']);
-  assert.deepEqual([...document.querySelectorAll('#settings-panel span')].map(el => el.textContent), ['防止休眠', '保留在菜单栏', '清除浏览数据？']);
+  assert.deepEqual([...document.querySelectorAll('#settings-panel span')].map(el => el.textContent), ['阻止系统休眠', '保持在菜单栏/托盘', '清除浏览数据？']);
 });

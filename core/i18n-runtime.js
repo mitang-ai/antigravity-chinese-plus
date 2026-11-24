@@ -566,9 +566,20 @@
       return '智能体权限预设选择器，当前：' + permissionPresets[current[1]].label;
     }
     var locked = value.match(/^Agent permissions preset: ([^,]+), ([\s\S]+)$/);
-    if (locked && Object.hasOwn(permissionPresets, locked[1])) return '智能体权限预设：' + permissionPresets[locked[1]].label + '，' +
-      (Object.hasOwn(exactDict, locked[2]) ? exactDict[locked[2]] : locked[2]);
+    if (locked) {
+      var name = locked[1];
+      var label = Object.hasOwn(permissionPresets, name) ? permissionPresets[name].label :
+        (name === 'Default' || name === 'Request Review') ? exactDict[name] : null;
+      if (label) return '智能体权限预设：' + label + '，' +
+        (Object.hasOwn(exactDict, locked[2]) ? exactDict[locked[2]] : locked[2]);
+    }
     return null;
+  }
+
+  function translateQueuedStatus(value, testId) {
+    var prefix = 'Waiting on ';
+    return testId === 'queued-messages-status' && value.startsWith(prefix) && value.length > prefix.length
+      ? '正在等待 ' + value.slice(prefix.length) : null;
   }
 
   function translateFeaturedAttribute(value, attr, el) {
@@ -591,6 +602,14 @@
 
   function translateUiText(text, el) {
     var testId = el && el.getAttribute('data-testid');
+    if (text === 'at' && el?.matches('span.text-muted-foreground.select-none') &&
+        el.closest('[data-testid="automation-schedule-editor"]')) return '于';
+    var queuedStatus = translateQueuedStatus(text, testId);
+    if (queuedStatus) return queuedStatus;
+    if ((text === 'Your plan' || text === 'Your plan:' || text.startsWith('Your plan: ')) &&
+        el?.classList.contains('font-medium') && el.closest('.settings-modal-container')) {
+      return text === 'Your plan' ? '当前方案' : '当前方案：' + text.slice('Your plan:'.length).trimStart();
+    }
     if (text.endsWith(' left') && el?.closest('[data-testid="inline-card-expiry"]')) {
       var remaining = text.match(/^(\d+)([ms]) left$/);
       if (remaining) return '剩余 ' + remaining[1] + (remaining[2] === 'm' ? ' 分钟' : ' 秒');
@@ -984,6 +1003,7 @@
           if (el[markKey] === val) continue;
 
           var trans = (attr === 'aria-label' && val.startsWith('Agent permissions preset') ? translatePresetAccessibility(val, el) : null) ??
+            (attr === 'title' && val.startsWith('Waiting on ') ? translateQueuedStatus(val, el.getAttribute('data-testid')) : null) ??
             translateMarketplaceCategory(val, el) ?? translateFeaturedAttribute(val, attr, el) ?? translateSingleUnit(val);
           if (attr === 'aria-label' && val.startsWith('Reset ') && val.endsWith(' to default') &&
               el.closest('[data-testid^="shortcut-row-"]')) {

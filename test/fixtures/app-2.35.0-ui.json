@@ -174,7 +174,57 @@
     "Too many environments running",
     "Plan upgrade required",
     "Daily conversation limit reached",
-    "Conversation limit reached"
+    "Conversation limit reached",
+    "Required",
+    "Trigger",
+    "Instructions",
+    "Uses your local files and tools. Schedules only.",
+    "What should the agent do on each run?",
+    "What should the agent do on each run? For example: summarize new bugs assigned to me and anything that changed overnight.",
+    "Where it runs",
+    "System UI",
+    "Legacy Dark",
+    "Legacy Light",
+    "Device name",
+    "Notification settings",
+    "Conversation steps",
+    "Font size",
+    "Browser actuation rules",
+    "Enable telemetry",
+    "Marketing emails",
+    "Runs on this machine",
+    "Runs in a cloud environment",
+    "Permissions cannot be changed while the agent is running",
+    "Model cannot be changed while the agent is running",
+    "Remote Permissions",
+    "Local Permissions",
+    "Environment",
+    "Select Environment",
+    "This Computer",
+    "Connect to SSH Host…",
+    "Search Projects…",
+    "Search Workspaces…",
+    "Search Repositories…",
+    "Search Remote…",
+    "Clone from Remote",
+    "Clone locally",
+    "Clone from This Computer",
+    "Clone did not return a valid folder path.",
+    "Switch to default text direction",
+    "Switch to RTL text direction",
+    "This side question isn't available in this conversation.",
+    "Queued Messages",
+    "Sends after agent finishes working",
+    "Sends after agent finishes working.",
+    "Sends after background work finishes.",
+    "Agent finished. Queued messages send after background work finishes.",
+    "Queued message deleted",
+    "Send Now",
+    "Collapse queued messages",
+    "Expand queued messages",
+    "Archive Conversation",
+    "Added",
+    "Blocked"
   ],
   "preserve": [
     {
@@ -226,6 +276,71 @@
       "text": "Answered",
       "kind": "composed",
       "reason": "The fallback shares the slot with a recorded answer summary."
+    },
+    {
+      "text": "at",
+      "kind": "composed",
+      "reason": "Localize the standalone connector only within the automation schedule editor."
+    },
+    {
+      "text": "Inter",
+      "kind": "technical",
+      "reason": "Preserve the font family as named upstream."
+    },
+    {
+      "text": "Google Sans",
+      "kind": "technical",
+      "reason": "Preserve the font family as named upstream."
+    },
+    {
+      "text": "Gruvbox Material",
+      "kind": "technical",
+      "reason": "Preserve the named theme preset as named upstream."
+    },
+    {
+      "text": "One Dark Pro",
+      "kind": "technical",
+      "reason": "Preserve the named theme preset as named upstream."
+    },
+    {
+      "text": "Tokyo Night",
+      "kind": "technical",
+      "reason": "Preserve the named theme preset as named upstream."
+    },
+    {
+      "text": "Solarized Dark",
+      "kind": "technical",
+      "reason": "Preserve the named theme preset as named upstream."
+    },
+    {
+      "text": "One Light",
+      "kind": "technical",
+      "reason": "Preserve the named theme preset as named upstream."
+    },
+    {
+      "text": "Solarized Light",
+      "kind": "technical",
+      "reason": "Preserve the named theme preset as named upstream."
+    },
+    {
+      "text": "Your plan",
+      "kind": "composed",
+      "reason": "Localize the settings label and its split or dynamic prefix in the renderer while preserving plan names."
+    },
+    {
+      "text": "SSH Host",
+      "kind": "composed",
+      "reason": "Localize the host menu control by its test identifier and preserve actual host aliases."
+    },
+    {
+      "text": "Search Hosts…",
+      "kind": "composed",
+      "reason": "Localize only the official host search placeholder."
+    },
+    {
+      "text": "CitC Clone",
+      "kind": "technical",
+      "reason": "Internal product terminology."
     }
   ]
 }
