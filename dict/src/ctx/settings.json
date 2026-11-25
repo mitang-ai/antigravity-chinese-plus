@@ -1160,6 +1160,8 @@
   "System UI": "系统界面字体",
   "Legacy Dark": "旧版深色",
   "Legacy Light": "旧版浅色",
+  "Exit inspect element mode (Esc)": "退出元素检查模式（Esc）",
+  "Ask a side question without interrupting the main conversation": "发起旁路提问，不打断主会话",
   "Runs even when your computer is off. Schedules and events.": "电脑关机后仍可运行，支持定时和事件触发。",
   "Runs even when your computer is off. Schedules only.": "电脑关机后仍可运行，仅支持定时运行。"
 }

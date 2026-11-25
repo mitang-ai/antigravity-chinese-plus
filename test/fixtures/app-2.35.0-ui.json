@@ -142,7 +142,6 @@
     "Archived Only",
     "Show Automations",
     "Show Plugins",
-    "New Side Question",
     "Stop side question",
     "Continue in Current Workspace",
     "Continue in Shared Workspace",
@@ -224,7 +223,15 @@
     "Expand queued messages",
     "Archive Conversation",
     "Added",
-    "Blocked"
+    "Blocked",
+    "Inspect element to comment",
+    "Exit inspect element mode (Esc)",
+    "Add screenshot to conversation",
+    "View site information",
+    "Close Other Tabs",
+    "Close Tabs to the Left",
+    "Close Tabs to the Right",
+    "Ask a side question without interrupting the main conversation"
   ],
   "preserve": [
     {
@@ -336,6 +343,16 @@
       "text": "Search Hosts…",
       "kind": "composed",
       "reason": "Localize only the official host search placeholder."
+    },
+    {
+      "text": "New",
+      "kind": "composed",
+      "reason": "Preserve temporary model badges in grouped model rows while translating the fixed New action elsewhere."
+    },
+    {
+      "text": "New Side Question",
+      "kind": "composed",
+      "reason": "Localize the default draft title in the side panel header and tab while preserving authored titles."
     },
     {
       "text": "CitC Clone",

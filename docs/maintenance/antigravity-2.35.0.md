@@ -35,3 +35,15 @@
 2. **保护受限会话禁强杀边界**：`manualInstall()` 严格遵循 `isProtectedEnvironment()`，在 `AGY_NO_KILL=1` 或智能体会话中彻底禁用交互强杀分支。
 3. **纯 VS Code 扩展用户安装通路**：`manualInstall()` 同时探测 `asarPath` 与 `vsExtDir`，无桌面端仅装有 VS Code 扩展时允许直接安装扩展补丁，不再死循环阻塞。
 4. **斜杠菜单 `dir="rtl"` 保护与高亮动态重译**：`isProtectedBoundary()` 显式保护 `[data-testid="menu-option-description"][dir="rtl"]`，防止单节点路径如 `Before` 误译；`translateElement()` 与 `recordMutations()` 统一处理单/多高亮节点及动态替换恢复。
+
+## 2.35.1 兼容性验证与 v3.4.3 上游同步
+
+2026-11-25 核对本机 Windows x64 客户端已升级至官方 **2.35.1**（`Antigravity.exe` FileVersion `2.35.1`、`resources\app.asar` 体积 6,729,546 字节、SHA-256 `9f0aad7274795d7fbde04931d96b348dcfc5f3d81d7373e6b70aeb09307442df`，外置文件 377 个），升级覆盖了原本地汉化补丁（保留 `~/.gemini/antigravity/i18n-live-cache.json` 长期缓存与全局社区插件）。
+
+- **前端资源比对**：从 `2.35.1` `resources\bin\language_server.exe` 提取的前端 `main.js`（12,798,818 字节，SHA-256 `f039eca519f153aeac9a0f1d10abc7afd8ff4b8009ef78d684669a3c7955f54d`）与 `2.35.0` 逐字节一致；`npm run audit:ui -- --bundle <2.35.1 main.js>` 核验全部保留项与新增清单通过。
+- **主进程补丁核查**：确认 `dist/main.js`、`dist/menu.js`、`dist/ipcHandlers.js`、`dist/tray.js`、`dist/webviewPopupSecurity.js`、`dist/deviceChooser.js` 在 `2.35.1` 中结构完整；补充 `dist/ipcHandlers.js` 的 `Select Download Folder`（「选择下载文件夹」）原生弹窗标题补丁。
+- **融合上游 `v3.3.63`–`v3.3.64` 精修**：
+  - 补充内置浏览器工具栏提示 `Exit inspect element mode (Esc)` 与旁路提问引导 `Ask a side question without interrupting the main conversation`；
+  - 新增 `url-security-indicator` 读屏摘要安全保留（`...。查看网站信息`）、`side-question-tab-header-name` 用户标题保护、草稿旁路提问标题 `New Side Question` 限定译名，以及按推理强度分组模型行 `model-selector-effort-group` 整行保护（防止误译模型旁 `New` 徽标）；
+  - 引入 `tools/compare-plugin-catalog.js` 公开插件目录快照对比工具与对应 DOM/目录回归测试（`CodeRabbit` / `Levels.fyi` / `Zapier` 改写版本在本仓库 `official-plugin-descriptions.json` 中已提前收录）。
+- **本机应用边界**：在受保护智能体会话中重新预注入最新 `v3.4.3` 补丁并生成 `app.asar.staged`（绑定 `2.35.1` 官方原版指纹）；VS Code 扩展本机未安装，macOS/Linux 仅涵盖自动化跨平台回归。

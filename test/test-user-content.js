@@ -152,6 +152,18 @@ test('2.34 conversation permission presets translate labels and accessible names
 });
 
 test('2.34 settings permission rows and portaled options distinguish presets from other selects', async t => {
+  const frames = [];
+  const turn = () => new Promise(resolve => setImmediate(resolve));
+  async function drainTranslation(window) {
+    // 等待 MutationObserver 完成调度后再逐帧排空翻译队列
+    await turn();
+    for (let i = 0; frames.length && i < 100; i++) {
+      for (const callback of frames.splice(0)) callback(window.performance.now());
+      await turn();
+    }
+    assert.equal(frames.length, 0, 'permission menu translation should finish within 100 frames');
+  }
+
   const row = (id, name, description, value) => `
     <span id="dropdown-label-${id}">${name}</span><span id="dropdown-description-${id}">${description}</span>
     <button class="agy-select-trigger" aria-labelledby="dropdown-label-${id} dropdown-value-${id}" aria-describedby="dropdown-description-${id}">
@@ -165,7 +177,13 @@ test('2.34 settings permission rows and portaled options distinguish presets fro
     row('model', 'Remote', 'Select a model.', 'Auto') + `
     <select aria-labelledby="dropdown-label-local" aria-describedby="dropdown-description-local">
       <option value="Auto">Auto</option><option value="Turbo">Turbo</option></select>
-    <div data-select-popup></div>`);
+    <div data-select-popup></div>`, {
+    beforeStart(doc) {
+      doc.defaultView.requestAnimationFrame = callback => frames.push(callback);
+      doc.defaultView.setInterval = () => 0;
+    },
+    waitForInitialTranslation: drainTranslation
+  });
   const value = id => document.getElementById('dropdown-value-' + id);
   assert.deepEqual(['project', 'local', 'remote', 'model'].map(id => value(id).textContent),
     ['自动审查', '完全权限', '完全权限', 'Auto']);
@@ -176,13 +194,13 @@ test('2.34 settings permission rows and portaled options distinguish presets fro
   popup.innerHTML = option('Auto', 'Automatically decide if commands run.') +
     option('Turbo (disabled by admin)', 'Run all commands without restrictions.') +
     option('Turbo', 'Run all commands without restrictions.') + option('Turbo', 'Video playback speed.');
-  await settle(window);
+  await drainTranslation(window);
   const labels = [...popup.querySelectorAll('.truncate')];
   assert.deepEqual(labels.map(el => el.textContent), ['自动审查', '完全权限（管理员已禁用）', '完全权限', '极速']);
   // Reuse text nodes between the two selects after both descriptions have been localized.
   labels[2].appendChild(labels[3].firstChild);
   labels[3].appendChild(labels[2].firstChild);
-  await settle(window);
+  await drainTranslation(window);
   assert.deepEqual(labels.slice(2).map(el => el.textContent), ['完全权限', '极速']);
 });
 
@@ -470,6 +488,64 @@ function settle(window) {
   return new Promise(resolve => window.setTimeout(resolve, 40));
 }
 
+test('2.35 browser toolbar and tab menu localize fixed text and preserve security summaries', async t => {
+  const { document } = await fixture(t, `
+    <button data-testid="webview-url-bar-inspect-button" title="Inspect element to comment" aria-label="Inspect element to comment"></button>
+    <button data-testid="webview-url-bar-screenshot" title="Add screenshot to conversation" aria-label="Add screenshot to conversation"></button>
+    <button data-testid="url-security-indicator" title="View site information" aria-label="example.test. View site information"></button>
+    <div role="menu">
+      <button data-testid="close-other-tabs"><span class="truncate">Close Other Tabs</span></button>
+      <button data-testid="close-tabs-to-the-left"><span class="truncate">Close Tabs to the Left</span></button>
+      <button data-testid="close-tabs-to-the-right"><span class="truncate">Close Tabs to the Right</span></button>
+    </div>
+    <p data-testid="user-input-step">Add screenshot to conversation</p>`);
+  const get = id => document.querySelector('[data-testid="' + id + '"]');
+  assert.equal(get('webview-url-bar-inspect-button').title, '检查元素并添加批注');
+  assert.equal(get('webview-url-bar-screenshot').getAttribute('aria-label'), '将截图添加到会话');
+  assert.equal(get('url-security-indicator').title, '查看网站信息');
+  assert.equal(get('url-security-indicator').getAttribute('aria-label'), 'example.test。查看网站信息');
+  assert.deepEqual([...document.querySelectorAll('[role="menu"] .truncate')].map(el => el.textContent),
+    ['关闭其他标签页', '关闭左侧标签页', '关闭右侧标签页']);
+  assert.equal(get('user-input-step').textContent, 'Add screenshot to conversation');
+});
+
+test('2.35 side question drafts translate without rewriting submitted titles or model badges', async t => {
+  const { document, window } = await fixture(t, `
+    <button id="draft-tab" data-tab-id="side_question__draft" title="New Side Question">
+      <div class="whitespace-nowrap" title="New Side Question">New Side Question</div>
+    </button>
+    <button id="named-tab" data-tab-id="side_question__conversation" title="New Side Question">
+      <div class="whitespace-nowrap" title="New Side Question">New Side Question</div>
+    </button>
+    <span id="draft-header" data-testid="side-question-tab-header-title" title="New Side Question">New Side Question</span>
+    <span data-testid="side-question-tab-header-title">
+      <span data-testid="side-question-tab-header-prefix">Side Question: </span>
+      <span id="name" data-testid="side-question-tab-header-name">Settings</span>
+    </span>
+    <div data-testid="side-question-tab-empty"><span>Ask a side question without interrupting the main conversation</span></div>
+    <div data-testid="model-selector-panel">
+      <button class="agy-overlay-item"><span class="flex min-w-0 flex-1 items-center gap-1.5 truncate">
+        <span data-testid="model-selector-effort-group">Gemini 4 Hydrogen</span>
+        <span>High</span>
+        <div class="bg-secondary opacity-70 flex items-center gap-1 rounded-full px-1.5 text-sm"><span id="model-tag">New</span></div>
+      </span></button>
+    </div>
+    <button id="action">New</button>`);
+  const get = id => document.getElementById(id);
+  assert.equal(get('draft-tab').textContent.trim(), '新建旁路提问');
+  assert.equal(get('draft-tab').title, '新建旁路提问');
+  assert.equal(get('draft-header').textContent, '新建旁路提问');
+  assert.equal(get('named-tab').textContent.trim(), 'New Side Question');
+  assert.equal(get('named-tab').title, 'New Side Question');
+  assert.equal(get('name').textContent, 'Settings');
+  assert.equal(document.querySelector('[data-testid="side-question-tab-empty"] span').textContent, '发起旁路提问，不打断主会话');
+  assert.equal(get('model-tag').textContent, 'New');
+  assert.equal(get('action').textContent, '新建');
+  get('model-tag').textContent = 'New';
+  await settle(window);
+  assert.equal(get('model-tag').textContent, 'New');
+});
+
 async function fixture(t, html, options = {}) {
   const dom = new JSDOM('<!doctype html><body>' + html + '</body>', {
     runScripts: 'outside-only',
@@ -482,7 +558,7 @@ async function fixture(t, html, options = {}) {
   options.beforeStart?.(window.document);
   if (options.pluginDescriptions) window.eval(`(${installOfficialPluginDescriptionSourceCheck})(${JSON.stringify(officialPluginDescriptions)})`);
   window.eval(runtime);
-  await settle(window);
+  await (options.waitForInitialTranslation || settle)(window);
   return { window, document: window.document, translate: window.__AGY_TRANSLATE_EL__ };
 }
 
@@ -1249,6 +1325,40 @@ test('project and unassigned settings localize verified official descriptions an
     assert.equal(view.querySelector('button').textContent, '复制路径');
   }
   assert.equal(document.querySelector('#quoted [data-case="docs"]').textContent, text);
+});
+
+test('reviewed partner summaries cover both catalog revisions without translating local copies', async t => {
+  const plugins = ['coderabbit', 'levels-fyi', 'zapier'];
+  const rows = [];
+  for (const plugin of plugins) {
+    const variants = Object.entries(officialPluginDescriptions).filter(([, entry]) => entry.plugin === plugin);
+    assert.ok(variants.length >= 2, plugin);
+    for (const [source, entry] of variants) {
+      const marketplace = 'antigravity-plugins-partners';
+      const installedFrom = { marketplace, id: marketplace + '/plugin/' + plugin };
+      rows.push({ plugin, source, expected: entry.translation, provenance: { installedFrom } });
+      rows.push({ plugin, source, expected: source, provenance: {} });
+    }
+  }
+  const markup = rows.map((_, i) => `<article>
+    <span class="font-medium truncate"></span>
+    <div class="text-sm text-muted-foreground line-clamp-2 mt-1" data-row="${i}"></div>
+    <button>Copy Path</button></article>`).join('');
+  const { document } = await fixture(t, `<section data-testid="project-customizations-content">
+    <div data-testid="workspace-customizations-view">${markup}</div></section>`, {
+    pluginDescriptions: true,
+    beforeStart(doc) {
+      for (const el of doc.querySelectorAll('[data-row]')) {
+        const { plugin, source, provenance } = rows[Number(el.dataset.row)];
+        el.textContent = source;
+        el.previousElementSibling.textContent = plugin;
+        el.__reactFiber$fixture = pluginDescriptionFiber(el, plugin, provenance).fiber;
+      }
+    }
+  });
+  for (const el of document.querySelectorAll('[data-row]')) {
+    assert.equal(el.textContent, rows[Number(el.dataset.row)].expected);
+  }
 });
 
 test('official description translation follows the committed renderer and restores when moved into user content', async t => {
