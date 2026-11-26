@@ -1279,7 +1279,7 @@ function status(customPath) {
   if (hasStaged) {
     try {
       const stagedMeta = JSON.parse(fs.readFileSync(stagedMetaPath, 'utf-8'));
-      const currentFp = computeFileFingerprint(asarPath);
+      const currentFp = getAsarFingerprint(asarPath);
       if (!stagedMeta || !stagedMeta.sourceFingerprint || stagedMeta.sourceFingerprint !== currentFp) {
         stagedStale = true;
       }

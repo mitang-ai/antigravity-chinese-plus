@@ -105,6 +105,24 @@ test('ensureLegacyTranslationPreserved builds staged package for simulated newly
     });
     assert.ok(res.action === 'patched_inline' || res.action === 'legacy_staged_created');
     assert.equal(res.state.client.patched || res.state.client.stagedState === 'ready', true);
+
+    // 校验 staged.meta.json 使用 getAsarFingerprint 后，inspectSystemState 必须精准识别为 ready 而非 stale
+    const cli = require('../cli');
+    const stagedPath = path.join(path.dirname(mockAsar), 'app.asar.staged');
+    const stagedMetaPath = path.join(path.dirname(mockAsar), 'app.asar.staged.meta.json');
+    fs.copyFileSync(mockAsar, stagedPath);
+    fs.writeFileSync(stagedMetaPath, JSON.stringify({
+      sourceFingerprint: cli.getAsarFingerprint(mockAsar),
+      stagedFingerprint: cli.getAsarFingerprint(stagedPath),
+      timestamp: Date.now()
+    }));
+    const stagedStateCheck = guardian.inspectSystemState({
+      plusHome: tmpPlus,
+      customPath: mockAsar,
+      findAsarPath: () => mockAsar,
+      isProcessRunning: () => true
+    });
+    assert.equal(stagedStateCheck.client.stagedState, 'ready');
   } finally {
     if (prevPlus === undefined) delete process.env.AGY_PLUS_HOME;
     else process.env.AGY_PLUS_HOME = prevPlus;

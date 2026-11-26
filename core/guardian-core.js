@@ -271,10 +271,10 @@ function readClientAppVersion(asarPath, options = {}) {
 }
 
 /**
- * 计算 SHA-256 指纹（取前 16 位与 cli.js 保持一致）。
+ * 计算文件指纹（SHA-1 前 16 位，与 cli.js 的 getAsarFingerprint 保持严格一致）。
  */
 function computeFingerprint(filePath) {
-  const hash = crypto.createHash('sha256');
+  const hash = crypto.createHash('sha1');
   const fd = fs.openSync(filePath, 'r');
   try {
     const buf = Buffer.alloc(1024 * 1024);
