@@ -1,49 +1,119 @@
+/*
+ * Antigravity 中文汉化守护驾驶舱样式
+ * 完整支持浅色/深色自动跟随宿主（--background / --foreground / --card 等原生 CSS 变量）
+ * 以及手动切换 auto / light / dark。
+ */
+
 :root {
-  --bg: var(--background, #181a20);
-  --fg: var(--foreground, #eef1f7);
-  --muted: var(--muted-foreground, #9aa3b5);
-  --card-bg: color-mix(in srgb, var(--fg) 5%, var(--bg));
-  --border-col: color-mix(in srgb, var(--fg) 13%, transparent);
-  --accent: var(--primary, #7c6df2);
-  --warn-bg: rgba(245, 158, 11, 0.14);
-  --warn-bd: rgba(245, 158, 11, 0.45);
-  --info-bg: rgba(99, 102, 241, 0.14);
-  --info-bd: rgba(129, 140, 248, 0.48);
-  --ok: #22c55e;
-  --warn: #f59e0b;
+  color-scheme: light;
+  --ig-bg: var(--background, #fbfbfa);
+  --ig-fg: var(--foreground, #141416);
+  --ig-surface: var(--card, #ffffff);
+  --ig-surface-soft: var(--muted, var(--secondary, color-mix(in srgb, var(--ig-fg) 4%, var(--ig-bg))));
+  --ig-surface-hover: color-mix(in srgb, var(--ig-fg) 7%, var(--ig-bg));
+  --ig-border: var(--card-border, var(--border, color-mix(in srgb, var(--ig-fg) 11%, transparent)));
+  --ig-border-strong: color-mix(in srgb, var(--ig-fg) 20%, transparent);
+  --ig-muted: var(--muted-foreground, var(--secondary-foreground, #686b73));
+
+  /* 交互按钮对比度（浅色模式默认深墨按钮白字） */
+  --ig-btn-solid-bg: #141416;
+  --ig-btn-solid-fg: #ffffff;
+  --ig-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 6px 18px rgba(0, 0, 0, 0.03);
+
+  /* 高对比克制状态色 */
+  --ig-good: #15803d;
+  --ig-good-bg: rgba(21, 128, 61, 0.1);
+  --ig-good-bd: rgba(21, 128, 61, 0.25);
+
+  --ig-warn: #b45309;
+  --ig-warn-bg: rgba(180, 83, 9, 0.1);
+  --ig-warn-bd: rgba(180, 83, 9, 0.28);
+
+  --ig-info: #1d4ed8;
+  --ig-info-bg: rgba(37, 99, 235, 0.09);
+  --ig-info-bd: rgba(37, 99, 235, 0.28);
+
+  --ig-font: var(--font-family, "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", sans-serif);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ig-bg: var(--background, #141417);
+  --ig-fg: var(--foreground, #f3f4f6);
+  --ig-surface: var(--card, #1d1e22);
+  --ig-surface-soft: var(--muted, var(--secondary, color-mix(in srgb, var(--ig-fg) 6%, var(--ig-bg))));
+  --ig-surface-hover: color-mix(in srgb, var(--ig-fg) 10%, var(--ig-bg));
+  --ig-border: var(--card-border, var(--border, color-mix(in srgb, var(--ig-fg) 12%, transparent)));
+  --ig-border-strong: color-mix(in srgb, var(--ig-fg) 24%, transparent);
+  --ig-muted: var(--muted-foreground, var(--secondary-foreground, #9ca3af));
+
+  /* 深色模式下主按钮用亮白底深字，不刺眼且清晰 */
+  --ig-btn-solid-bg: #f3f4f6;
+  --ig-btn-solid-fg: #141416;
+  --ig-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 22px rgba(0, 0, 0, 0.2);
+
+  --ig-good: #4ade80;
+  --ig-good-bg: rgba(74, 222, 128, 0.13);
+  --ig-good-bd: rgba(74, 222, 128, 0.3);
+
+  --ig-warn: #fbbf24;
+  --ig-warn-bg: rgba(251, 191, 36, 0.13);
+  --ig-warn-bd: rgba(251, 191, 36, 0.32);
+
+  --ig-info: #60a5fa;
+  --ig-info-bg: rgba(96, 165, 250, 0.13);
+  --ig-info-bd: rgba(96, 165, 250, 0.32);
+}
+
+:root[data-theme-mode="light"] {
+  --ig-bg: #fbfbfa;
+  --ig-fg: #141416;
+  --ig-surface: #ffffff;
+  --ig-surface-soft: #f2f2ef;
+  --ig-border: rgba(0, 0, 0, 0.09);
+  --ig-muted: #686b73;
+}
+
+:root[data-theme-mode="dark"] {
+  --ig-bg: #131316;
+  --ig-fg: #f3f4f6;
+  --ig-surface: #1d1e22;
+  --ig-surface-soft: #27282e;
+  --ig-border: rgba(255, 255, 255, 0.1);
+  --ig-muted: #9ca3af;
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
+html, body {
   margin: 0;
-  padding: 14px;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  padding: 0;
+  background: var(--ig-bg);
+  color: var(--ig-fg);
+  font-family: var(--ig-font);
   font-size: 13px;
   line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
 }
 
 .shell {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-width: 720px;
+  max-width: 680px;
   margin: 0 auto;
+  padding: 12px 14px 48px;
 }
 
+/* 顶部栏 */
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-col);
+  padding: 4px 2px;
 }
 
 .brand {
@@ -54,57 +124,46 @@ body {
 }
 
 .brand-mark {
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 9px;
-  background: var(--accent);
-  color: #fff;
+  background: var(--ig-btn-solid-bg);
+  color: var(--ig-btn-solid-fg);
   display: grid;
   place-items: center;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
   flex-shrink: 0;
 }
 
-.brand-title-row {
+.brand-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
 }
 
-.brand-title-row h1 {
+.brand-row h1 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14.5px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
-.ver-chip,
-.hint-chip,
-.busy-tag {
+.ver-pill,
+.subtle-chip {
   font-size: 11px;
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px solid var(--border-col);
-  color: var(--muted);
+  background: var(--ig-surface-soft);
+  border: 1px solid var(--ig-border);
+  color: var(--ig-muted);
+  white-space: nowrap;
 }
 
-.live-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.top-sub {
+  display: block;
   font-size: 11.5px;
-  color: var(--muted);
-}
-
-.live-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--ok);
-}
-
-.live-dot.warn {
-  background: var(--warn);
+  color: var(--ig-muted);
 }
 
 .topbar-actions {
@@ -116,16 +175,19 @@ body {
 button {
   font: inherit;
   cursor: pointer;
-  border-radius: 8px;
-  border: 1px solid var(--border-col);
-  background: var(--card-bg);
-  color: var(--fg);
-  padding: 5px 10px;
-  transition: opacity 0.15s ease, transform 0.1s ease;
+  border: 1px solid var(--ig-border);
+  background: var(--ig-surface);
+  color: var(--ig-fg);
+  border-radius: 9px;
+  transition: background-color 0.15s ease, opacity 0.15s ease, transform 0.1s ease;
 }
 
 button:hover:not(:disabled) {
-  opacity: 0.9;
+  background: var(--ig-surface-hover);
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.985);
 }
 
 button:disabled {
@@ -133,213 +195,442 @@ button:disabled {
   cursor: not-allowed;
 }
 
-.primary-btn {
-  background: var(--accent);
-  border-color: transparent;
-  color: #fff;
-  font-weight: 600;
-}
-
-.secondary-btn {
-  background: var(--card-bg);
-}
-
 .icon-btn {
   width: 30px;
-  height: 28px;
+  height: 30px;
+  display: grid;
+  place-items: center;
   padding: 0;
+  border-radius: 8px;
 }
 
-.link-btn {
-  font-size: 12px;
-  color: var(--fg);
-  text-decoration: underline;
-  align-self: center;
+.icon-btn.spinning svg {
+  animation: ig-spin 0.8s linear infinite;
 }
 
-.banner {
+@keyframes ig-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* 核心状态主卡 */
+.hero-card {
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--ig-surface);
+  border: 1px solid var(--ig-border);
+  box-shadow: var(--ig-shadow);
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 11px 13px;
-  border-radius: 11px;
-  border: 1px solid var(--border-col);
-}
-
-.banner-warn {
-  background: var(--warn-bg);
-  border-color: var(--warn-bd);
-}
-
-.banner-update {
-  background: var(--info-bg);
-  border-color: var(--info-bd);
-}
-
-.banner-title {
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.banner-desc {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 2px;
-  max-width: 440px;
-  word-break: break-word;
-}
-
-.banner-actions {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
 }
 
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.hero-card.tone-good {
+  border-color: var(--ig-good-bd);
 }
 
-.stat-card,
-.panel-card {
-  padding: 11px 13px;
-  border-radius: 11px;
-  background: var(--card-bg);
-  border: 1px solid var(--border-col);
+.hero-card.tone-warn {
+  border-color: var(--ig-warn-bd);
+  background: linear-gradient(180deg, var(--ig-warn-bg) 0%, var(--ig-surface) 72%);
 }
 
-.stat-label {
-  font-size: 11.5px;
-  color: var(--muted);
+.hero-card.tone-update {
+  border-color: var(--ig-info-bd);
+  background: linear-gradient(180deg, var(--ig-info-bg) 0%, var(--ig-surface) 72%);
 }
 
-.stat-value {
-  font-size: 16px;
-  font-weight: 600;
-  margin-top: 3px;
-}
-
-.stat-sub {
-  font-size: 11.5px;
-  color: var(--muted);
-  margin-top: 3px;
-}
-
-.inline-toggle-btn {
-  padding: 1px 7px;
-  font-size: 11px;
-}
-
-.panel-head {
+.hero-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  gap: 8px;
 }
 
-.panel-head h2 {
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--ig-surface-soft);
+  color: var(--ig-muted);
+}
+
+.tone-good .hero-badge {
+  background: var(--ig-good-bg);
+  color: var(--ig-good);
+}
+
+.tone-warn .hero-badge {
+  background: var(--ig-warn-bg);
+  color: var(--ig-warn);
+}
+
+.tone-update .hero-badge {
+  background: var(--ig-info-bg);
+  color: var(--ig-info);
+}
+
+.hero-title {
+  margin: 2px 0 0;
+  font-size: 16.5px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.hero-desc {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--ig-muted);
+}
+
+.release-box {
+  margin-top: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--ig-surface-soft);
+  border: 1px solid var(--ig-border);
+}
+
+.release-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.release-head a {
+  color: var(--ig-info);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.release-head a:hover {
+  text-decoration: underline;
+}
+
+.release-notes {
+  font-size: 12px;
+  color: var(--ig-muted);
+  white-space: pre-line;
+  max-height: 92px;
+  overflow-y: auto;
+}
+
+.progress-box {
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.progress-track {
+  height: 5px;
+  border-radius: 999px;
+  background: var(--ig-surface-soft);
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  width: 30%;
+  border-radius: 999px;
+  background: var(--ig-info);
+  transition: width 0.3s ease;
+}
+
+.progress-text {
+  font-size: 11.5px;
+  color: var(--ig-muted);
+}
+
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.btn-primary {
+  background: var(--ig-btn-solid-bg);
+  color: var(--ig-btn-solid-fg);
+  border-color: transparent;
+  font-weight: 600;
+  padding: 7px 14px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--ig-btn-solid-bg);
+  opacity: 0.88;
+}
+
+.btn-secondary {
+  background: var(--ig-surface-soft);
+  padding: 7px 12px;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 12px;
+}
+
+.btn-chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: var(--ig-surface-soft);
+  flex-shrink: 0;
+}
+
+.check-meta {
+  font-size: 11.5px;
+  color: var(--ig-muted);
+}
+
+/* 设置卡片 */
+.panel-card {
+  padding: 14px 16px;
+  border-radius: 15px;
+  background: var(--ig-surface);
+  border: 1px solid var(--ig-border);
+  box-shadow: var(--ig-shadow);
+}
+
+.panel-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.panel-title-row h2 {
   margin: 0;
   font-size: 13.5px;
   font-weight: 600;
 }
 
-.action-row {
+.setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--ig-border);
+}
+
+.setting-row:first-of-type {
+  border-top: none;
+}
+
+.setting-copy {
+  min-width: 0;
+}
+
+.setting-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.setting-hint {
+  font-size: 11.5px;
+  color: var(--ig-muted);
+  margin-top: 2px;
+}
+
+/* 优雅的 iOS 风格开关 */
+.switch-wrap {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.switch-input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--ig-surface-soft);
+  border: 1px solid var(--ig-border-strong);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ig-fg);
+  opacity: 0.7;
+  transition: transform 0.2s ease, background-color 0.2s ease, opacity 0.2s ease;
+}
+
+.switch-input:checked + .switch-track {
+  background: var(--ig-btn-solid-bg);
+  border-color: transparent;
+}
+
+.switch-input:checked + .switch-track::after {
+  transform: translateX(16px);
+  background: var(--ig-btn-solid-fg);
+  opacity: 1;
+}
+
+/* 折叠高级面板 */
+.advanced-details {
+  padding: 0;
+}
+
+.advanced-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--ig-muted);
+  user-select: none;
+}
+
+.advanced-summary::-webkit-details-marker {
+  display: none;
+}
+
+.advanced-details[open] .chevron {
+  transform: rotate(180deg);
+}
+
+.chevron {
+  transition: transform 0.2s ease;
+}
+
+.advanced-body {
+  padding: 0 16px 14px;
+  border-top: 1px solid var(--ig-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+.mirror-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px;
+}
+
+.preset-pill {
+  padding: 3px 9px;
+  font-size: 11.5px;
+  border-radius: 999px;
+  background: var(--ig-surface-soft);
+}
+
+.preset-pill.active {
+  background: var(--ig-btn-solid-bg);
+  color: var(--ig-btn-solid-fg);
+  border-color: transparent;
+}
+
+.input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.input-row input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--ig-border);
+  background: var(--ig-bg);
+  color: var(--ig-fg);
+  font: inherit;
+  font-size: 12px;
+}
+
+.adv-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.feedback-line {
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
-  min-height: 16px;
-}
-
-.toggle-row,
-.shortcut-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--border-col);
-}
-
-.toggle-row:first-of-type {
-  border-top: none;
-}
-
-.toggle-title {
-  font-weight: 500;
-}
-
-.toggle-desc {
+.tech-summary {
   font-size: 11.5px;
-  color: var(--muted);
+  color: var(--ig-muted);
+  padding: 9px 10px;
+  border-radius: 9px;
+  background: var(--ig-surface-soft);
+  line-height: 1.6;
 }
 
-.field-row {
-  padding-top: 10px;
-  margin-top: 4px;
-  border-top: 1px solid var(--border-col);
-}
-
-.field-label {
-  display: block;
+/* 轻提示与弹窗 */
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--ig-btn-solid-bg);
+  color: var(--ig-btn-solid-fg);
   font-size: 12px;
-  color: var(--muted);
-  margin-bottom: 5px;
-}
-
-.input-group {
-  display: flex;
-  gap: 8px;
-}
-
-.input-group input {
-  flex: 1;
-  min-width: 0;
-  border-radius: 8px;
-  border: 1px solid var(--border-col);
-  background: var(--bg);
-  color: var(--fg);
-  padding: 5px 9px;
-  font: inherit;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  max-width: 90%;
+  text-align: center;
 }
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.56);
+  background: rgba(0, 0, 0, 0.48);
+  backdrop-filter: blur(4px);
   display: grid;
   place-items: center;
   padding: 16px;
-  z-index: 999;
+  z-index: 1100;
 }
 
 .modal-card {
   width: 100%;
-  max-width: 400px;
-  padding: 16px;
-  border-radius: 13px;
-  background: var(--bg);
-  border: 1px solid var(--border-col);
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  max-width: 390px;
+  padding: 18px;
+  border-radius: 16px;
+  background: var(--ig-surface);
+  color: var(--ig-fg);
+  border: 1px solid var(--ig-border);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.32);
 }
 
 .modal-card h3 {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: 15.5px;
 }
 
 .modal-card p {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   font-size: 12.5px;
-  color: var(--muted);
+  color: var(--ig-muted);
 }
 
 .modal-actions {
@@ -350,9 +641,4 @@ button:disabled {
 
 .hidden {
   display: none !important;
-}
-
-code {
-  font-family: Consolas, monospace;
-  font-size: 11px;
 }

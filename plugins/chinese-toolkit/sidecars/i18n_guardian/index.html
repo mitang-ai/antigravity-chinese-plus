@@ -1,148 +1,159 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme-mode="auto" data-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>中文汉化守护 · i18n Guardian</title>
+  <title>中文汉化守护 · Antigravity Plus</title>
   <script src="/preload.js"></script>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="shell" id="app-shell">
+    <!-- 顶部极简导航栏 -->
     <header class="topbar">
       <div class="brand">
         <div class="brand-mark" aria-hidden="true">中</div>
-        <div class="brand-copy">
-          <div class="brand-title-row">
-            <h1>中文汉化守护</h1>
-            <span id="plus-ver-badge" class="ver-chip">v3.6.0</span>
+        <div class="brand-text">
+          <div class="brand-row">
+            <h1>Antigravity 汉化</h1>
+            <span id="plus-ver-badge" class="ver-pill">v3.6.3</span>
           </div>
-          <span class="live-status" id="guardian-status-line">
-            <span class="live-dot" id="status-dot"></span>
-            <span id="status-headline">正在巡检客户端与持久词库…</span>
-          </span>
+          <span id="top-subtitle" class="top-sub">正在检测当前状态…</span>
         </div>
       </div>
       <div class="topbar-actions">
-        <button id="btn-check-update" class="pill-btn" title="立即检查 GitHub Release 新版本">
-          <span>检查更新</span>
+        <button id="btn-theme" class="icon-btn" title="切换显示主题（当前：跟随软件）" aria-label="切换主题">
+          <span id="theme-icon" aria-hidden="true"></span>
         </button>
-        <button id="btn-refresh" class="icon-btn" title="刷新本地状态" aria-label="刷新">↻</button>
+        <button id="btn-refresh" class="icon-btn" title="刷新状态" aria-label="刷新状态">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"/>
+            <polyline points="21 3 21 9 15 9"/>
+          </svg>
+        </button>
       </div>
     </header>
 
-    <!-- 官方升级旧译保持横幅 -->
-    <section id="legacy-banner" class="banner banner-warn hidden">
-      <div class="banner-body">
-        <div class="banner-title">检测到官方客户端已更新，已使用旧版词库自动预构建兼容包</div>
-        <div class="banner-desc" id="legacy-banner-desc">您无需等待新版汉化发布，点击即可先应用已有中文界面并检查新版本。</div>
+    <!-- 核心首屏：一眼看懂当前状态 + 唯一明确操作 -->
+    <section id="hero-card" class="hero-card tone-neutral" aria-live="polite">
+      <div class="hero-top">
+        <div id="hero-badge" class="hero-badge">检测中</div>
+        <span id="client-ver-chip" class="subtle-chip">客户端 --</span>
       </div>
-      <button id="btn-banner-restart" class="primary-btn">立即重启恢复中文</button>
-    </section>
+      <h2 id="hero-title" class="hero-title">正在读取软件与汉化状态…</h2>
+      <p id="hero-desc" class="hero-desc">请稍候，正在核对本机词库与最新版本信息。</p>
 
-    <!-- 新版汉化发布提醒横幅 -->
-    <section id="update-banner" class="banner banner-update hidden">
-      <div class="banner-body">
-        <div class="banner-title">发现汉化包新版 <strong id="update-new-ver">v0.0.0</strong></div>
-        <div class="banner-desc" id="update-notes">包含最新界面补漏与运行引擎优化。</div>
-      </div>
-      <div class="banner-actions">
-        <a id="update-release-link" class="link-btn" href="#" target="_blank" rel="noreferrer">查看更新日志</a>
-        <button id="btn-online-update" class="primary-btn">一键在线更新</button>
-      </div>
-    </section>
-
-    <!-- 关键状态指标网格 -->
-    <section class="card-grid" aria-label="核心运行状态">
-      <article class="stat-card">
-        <div class="stat-label">Antigravity 客户端</div>
-        <div class="stat-value" id="client-version-val">--</div>
-        <div class="stat-sub" id="client-patch-val">检测中…</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">外置热加载引擎</div>
-        <div class="stat-value" id="runtime-status-val">--</div>
-        <div class="stat-sub" id="dict-count-val">-- 词条 / -- 规则</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">预注入切换队列</div>
-        <div class="stat-value" id="staged-state-val">--</div>
-        <div class="stat-sub" id="staged-detail-val">指纹防降级锁就绪</div>
-      </article>
-      <article class="stat-card">
-        <div class="stat-label">实时翻译缓存</div>
-        <div class="stat-value" id="live-cache-val">--</div>
-        <div class="stat-sub">
-          <button id="btn-toggle-live" class="inline-toggle-btn">切换状态</button>
+      <!-- 更新日志摘要（仅发现新版时展开） -->
+      <div id="release-box" class="release-box hidden">
+        <div class="release-head">
+          <span id="release-title">新版亮点</span>
+          <a id="release-link" href="#" target="_blank" rel="noreferrer">完整日志 ↗</a>
         </div>
-      </article>
+        <div id="release-notes" class="release-notes"></div>
+      </div>
+
+      <!-- 在线更新分步进度条（操作时可见） -->
+      <div id="progress-box" class="progress-box hidden">
+        <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+        <div id="progress-text" class="progress-text">正在连接…</div>
+      </div>
+
+      <div class="hero-actions">
+        <button id="btn-hero-primary" class="btn-primary hidden"></button>
+        <button id="btn-hero-secondary" class="btn-secondary hidden"></button>
+      </div>
+      <div id="check-meta" class="check-meta">上次检查：--</div>
     </section>
 
-    <!-- 快捷操作栏 -->
+    <!-- 省心长期保护设置：全白话表达，零技术黑话 -->
     <section class="panel-card">
-      <div class="panel-head">
-        <h2>快捷维护操作</h2>
-        <span id="busy-indicator" class="busy-tag hidden">处理中…</span>
-      </div>
-      <div class="action-row">
-        <button id="btn-preserve-legacy" class="secondary-btn">用本地词库预构建/修复补丁</button>
-        <button id="btn-force-reinstall-online" class="secondary-btn">从最新 Release 重新拉取更新</button>
-        <button id="btn-open-restart-modal" class="primary-btn hidden">立即重启以应用更新</button>
-      </div>
-      <div id="action-feedback" class="feedback-line"></div>
-    </section>
-
-    <!-- 长期保持机制与配置 -->
-    <section class="panel-card">
-      <div class="panel-head">
-        <h2>跨版本长期保持策略</h2>
-        <span class="hint-chip">官方升级不丢失</span>
+      <div class="panel-title-row">
+        <h2>省心长期保持</h2>
+        <span class="subtle-chip">官方更新不担心</span>
       </div>
 
-      <label class="toggle-row">
-        <div>
-          <div class="toggle-title">官方更新后自动保持旧版翻译</div>
-          <div class="toggle-desc">检测到新版客户端把 <code>app.asar</code> 恢复为英文后，自动用外置词库生成兼容预注入包。</div>
+      <label class="setting-row">
+        <div class="setting-copy">
+          <div class="setting-name">软件升级后自动恢复中文</div>
+          <div class="setting-hint">官方自动更新覆盖软件后，悄悄用本机已存翻译先补回来，不必等新版发布</div>
         </div>
-        <input type="checkbox" id="chk-auto-preserve">
+        <span class="switch-wrap">
+          <input type="checkbox" id="chk-auto-preserve" class="switch-input">
+          <span class="switch-track"></span>
+        </span>
       </label>
 
-      <label class="toggle-row">
-        <div>
-          <div class="toggle-title">启动时自动检查汉化包新版</div>
-          <div class="toggle-desc">周期查询 GitHub <code>mitang-ai/antigravity-chinese-plus</code> 发布页（30 分钟冷却缓存）。</div>
+      <label class="setting-row">
+        <div class="setting-copy">
+          <div class="setting-name">有新版汉化时自动提醒</div>
+          <div class="setting-hint">定期检查是否有新版本翻译，发现后会在上方卡片提示一键更新</div>
         </div>
-        <input type="checkbox" id="chk-auto-check">
+        <span class="switch-wrap">
+          <input type="checkbox" id="chk-auto-check" class="switch-input">
+          <span class="switch-track"></span>
+        </span>
       </label>
 
-      <div class="field-row">
-        <label for="input-mirror" class="field-label">GitHub 下载加速镜像（可选）</label>
-        <div class="input-group">
-          <input id="input-mirror" type="text" placeholder="留空直连，或填例如 https://ghfast.top/">
-          <button id="btn-save-settings" class="secondary-btn">保存配置</button>
+      <div class="setting-row">
+        <div class="setting-copy">
+          <div class="setting-name">扩展详情页动态实时翻译</div>
+          <div class="setting-hint" id="live-cache-hint">遇到词库未收录的插件介绍时自动翻译并本地记住</div>
         </div>
+        <button id="btn-toggle-live" class="btn-chip">已开启</button>
       </div>
 
-      <div class="field-row shortcut-row">
-        <div>
-          <div class="toggle-title">桌面「Antigravity 中文自愈版」启动器</div>
-          <div class="toggle-desc" id="shortcut-desc">官方静默升级后双击此图标，会在 1~2 秒内自动补回中文并直接打开。</div>
+      <div class="setting-row">
+        <div class="setting-copy">
+          <div class="setting-name">桌面「中文自愈启动」图标</div>
+          <div class="setting-hint" id="shortcut-desc">从此图标打开，若官方刚升级会先 1 秒自动修复中文再启动</div>
         </div>
-        <button id="btn-toggle-shortcut" class="secondary-btn">创建桌面快捷方式</button>
+        <button id="btn-toggle-shortcut" class="btn-chip">添加图标</button>
       </div>
     </section>
+
+    <!-- 默认折叠的高级与网络选项，不打扰日常使用 -->
+    <details class="panel-card advanced-details">
+      <summary class="advanced-summary">
+        <span>网络加速与高级工具</span>
+        <span class="chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="advanced-body">
+        <div class="mirror-block">
+          <div class="setting-name">下载源加速</div>
+          <div class="mirror-presets" id="mirror-presets">
+            <button type="button" class="preset-pill" data-mirror="">直连 GitHub</button>
+            <button type="button" class="preset-pill" data-mirror="https://ghfast.top/">ghfast 加速</button>
+            <button type="button" class="preset-pill" data-mirror="https://gh-proxy.com/">gh-proxy 加速</button>
+          </div>
+          <div class="input-row">
+            <input id="input-mirror" type="text" placeholder="或填入自定义加速前缀，留空表示直连">
+            <button id="btn-save-mirror" class="btn-secondary btn-sm">应用</button>
+          </div>
+        </div>
+
+        <div class="adv-actions">
+          <button id="btn-preserve-legacy" class="btn-secondary btn-sm">用当前词库重新生成补丁</button>
+          <button id="btn-force-online" class="btn-secondary btn-sm">重新下载覆盖最新汉化</button>
+        </div>
+
+        <div id="tech-summary" class="tech-summary">正在汇总运行环境详情…</div>
+      </div>
+    </details>
   </div>
 
-  <!-- 更新完成自动弹出的重启请求模态对话框 -->
+  <!-- 轻提示 Toast -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <!-- 更新完成自动弹出的重启确认框 -->
   <div id="restart-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="restart-modal-title">
     <div class="modal-card">
-      <h3 id="restart-modal-title">汉化更新已就绪，是否立即重启？</h3>
+      <h3 id="restart-modal-title">汉化已准备好，是否立即重启？</h3>
       <p id="restart-modal-message">
-        最新汉化补丁已完成构建与指纹校验。点击「立即重启应用」将安全请求主窗口保存并退出，待文件解锁后在 0.5 秒内完成原子替换并重新打开中文版 Antigravity。
+        点击「立即重启」将通知窗口正常保存退出，几秒内自动替换并重新打开中文版 Antigravity（如有未保存文件会弹窗提醒您）。
       </p>
       <div class="modal-actions">
-        <button id="btn-modal-later" class="secondary-btn">稍后我手动退出后生效</button>
-        <button id="btn-modal-restart" class="primary-btn">立即重启应用</button>
+        <button id="btn-modal-later" class="btn-secondary">稍后手动重启</button>
+        <button id="btn-modal-restart" class="btn-primary">立即重启软件</button>
       </div>
     </div>
   </div>
