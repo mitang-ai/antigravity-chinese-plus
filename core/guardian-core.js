@@ -96,6 +96,58 @@ function copyDirRecursiveSync(srcDir, destDir, options = {}) {
 }
 
 /**
+ * 抗目录句柄占用同步：优先尝试删除重命名实现原子替换；若目标目录被 Windows 进程 CWD 占用 (EPERM/EBUSY)，
+ * 自动降级为原地文件覆盖同步并清理可移除的陈旧文件，确保 Sidecar 运行期间也能顺利完成自身更新。
+ */
+function syncDirectoryResilient(srcDir, destDir, options = {}) {
+  const excludeNames = new Set(options.excludeNames || ['.git', 'node_modules']);
+  if (!fs.existsSync(destDir)) {
+    fs.mkdirSync(path.dirname(destDir), { recursive: true });
+    if (options.moveFromSrc) {
+      fs.renameSync(srcDir, destDir);
+      return;
+    }
+    copyDirRecursiveSync(srcDir, destDir, options);
+    return;
+  }
+
+  try {
+    fs.rmSync(destDir, { recursive: true, force: true });
+    if (options.moveFromSrc) {
+      fs.renameSync(srcDir, destDir);
+    } else {
+      copyDirRecursiveSync(srcDir, destDir, options);
+    }
+    return;
+  } catch (err) {
+    if (!err || !['EPERM', 'EBUSY', 'EACCES', 'ENOTEMPTY'].includes(err.code)) {
+      throw err;
+    }
+  }
+
+  // 降级方案：原地逐文件更新（覆盖），并清理 src 中已不存在的陈旧节点（忽略被占用目录）
+  copyDirRecursiveSync(srcDir, destDir, options);
+  const pruneStale = (curSrc, curDest) => {
+    let destEntries = [];
+    try { destEntries = fs.readdirSync(curDest, { withFileTypes: true }); } catch (_) { return; }
+    for (const entry of destEntries) {
+      if (excludeNames.has(entry.name)) continue;
+      const dPath = path.join(curDest, entry.name);
+      const sPath = path.join(curSrc, entry.name);
+      if (!fs.existsSync(sPath)) {
+        try { fs.rmSync(dPath, { recursive: true, force: true }); } catch (_) {}
+      } else if (entry.isDirectory()) {
+        pruneStale(sPath, dPath);
+      }
+    }
+  };
+  pruneStale(srcDir, destDir);
+  if (options.moveFromSrc) {
+    try { fs.rmSync(srcDir, { recursive: true, force: true }); } catch (_) {}
+  }
+}
+
+/**
  * 轻量比较两个语义化版本号 (a > b => 1, a < b => -1, a === b => 0)。
  */
 function compareSemver(a, b) {
@@ -191,8 +243,7 @@ function syncRuntimeFromDir(sourceDir, options = {}) {
       }
     }
 
-    if (fs.existsSync(runtimeDir)) fs.rmSync(runtimeDir, { recursive: true, force: true });
-    fs.renameSync(stagingDir, runtimeDir);
+    syncDirectoryResilient(stagingDir, runtimeDir, { moveFromSrc: true, excludeNames: ['.git'] });
   } catch (err) {
     if (fs.existsSync(stagingDir)) {
       try { fs.rmSync(stagingDir, { recursive: true, force: true }); } catch (_) {}
@@ -225,8 +276,7 @@ function ensurePluginInstalledAndEnabled(sourcePluginDir, options = {}) {
   if (sourcePluginDir && fs.existsSync(sourcePluginDir)) {
     const parent = path.dirname(targetPluginDir);
     fs.mkdirSync(parent, { recursive: true });
-    if (fs.existsSync(targetPluginDir)) fs.rmSync(targetPluginDir, { recursive: true, force: true });
-    copyDirRecursiveSync(sourcePluginDir, targetPluginDir);
+    syncDirectoryResilient(sourcePluginDir, targetPluginDir);
   }
 
   const config = readJsonSafe(configPath, {});

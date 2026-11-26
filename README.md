@@ -6,7 +6,7 @@
 
 <p>
   <a href="https://github.com/mitang-ai/antigravity-chinese-plus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitang-ai/antigravity-chinese-plus/ci.yml?branch=main&amp;label=CI&amp;logo=github" alt="CI 构建状态"></a>
-  <img src="https://img.shields.io/badge/Version-v3.6.1-2563eb" alt="当前版本 v3.6.1">
+  <img src="https://img.shields.io/badge/Version-v3.6.2-2563eb" alt="当前版本 v3.6.2">
   <img src="https://img.shields.io/badge/Antigravity_App-2.35.2-10b981" alt="适配 Antigravity 2.35.2">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-475569" alt="支持平台 Windows macOS Linux">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18-16a34a?logo=node.js" alt="需要 Node.js 18 及以上">
