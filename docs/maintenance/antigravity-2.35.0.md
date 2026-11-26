@@ -47,3 +47,11 @@
   - 新增 `url-security-indicator` 读屏摘要安全保留（`...。查看网站信息`）、`side-question-tab-header-name` 用户标题保护、草稿旁路提问标题 `New Side Question` 限定译名，以及按推理强度分组模型行 `model-selector-effort-group` 整行保护（防止误译模型旁 `New` 徽标）；
   - 引入 `tools/compare-plugin-catalog.js` 公开插件目录快照对比工具与对应 DOM/目录回归测试（`CodeRabbit` / `Levels.fyi` / `Zapier` 改写版本在本仓库 `official-plugin-descriptions.json` 中已提前收录）。
 - **本机应用边界**：在受保护智能体会话中重新预注入最新 `v3.4.3` 补丁并生成 `app.asar.staged`（绑定 `2.35.1` 官方原版指纹）；VS Code 扩展本机未安装，macOS/Linux 仅涵盖自动化跨平台回归。
+
+## 2.35.2 全面适配与 v3.5.0 仓库升级
+
+2026-11-26 核对本机 Windows x64 客户端已升级至官方 **2.35.2**（`resources\app.asar` 体积 6,729,546 字节、SHA-256 `e057115571cf5085406d20f2427a5afac272b712ec84332c7157da0113d4b2d0`）。按用户要求，本轮仅完成仓库侧代码同步、实包对照与自动化全量验证，暂未执行本机客户端覆盖安装。
+
+- **前端变更提取与比对**：从 `2.35.2` `resources\bin\language_server.exe` 提取前端 `main.js`（12,798,822 字节，SHA-256 `494f0599aa61a7fa97eea7d5d7ab6cd14ddf05866a0bfb0c709a2d75ddfcb58c`）。除合并上游 `v3.3.65`（PR #21）的网站信息/证书详情、下载操作面板、工具摘要（`Explored/Ran/Edited`）、用户消息相对时间戳、模型选择器动态后缀外，另行在 `2.35.2` 源码中定位并补译 Google Drive 链接标题加载失败 4 项提示及 `/btw` 空输入提示，共纳入 [app-2.35.2-ui.json](../../test/fixtures/app-2.35.2-ui.json) 核验。
+- **Swarm 与 CLI 体验增强**：同步上游 PR #22 对 Swarm 关系图/GIF 预览的更精细选择器收敛与译文对齐；在 `cli.js status` 增加 `app.asar.staged.meta.json` 来源指纹实时比对诊断，官方静默升级后可直观识别预注入包是否失效。
+- **验证范围**：通过 `npm run build:dict`（5,117 条精确词条 / 445 组动态正则）、`npm run audit:ui`（对齐 `2.35.2` 提取 `main.js`）及 `npm test` 全套 14 项测试与 45 项静态一致性检查；VS Code 扩展本机未安装，macOS/Linux 仅覆盖自动化跨平台回归。

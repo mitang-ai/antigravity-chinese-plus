@@ -1188,10 +1188,27 @@ function status(customPath) {
   
   const patched = isAsarPatched(asarPath);
   const stagedPath = path.join(resourcesDir, 'app.asar.staged');
+  const stagedMetaPath = path.join(resourcesDir, 'app.asar.staged.meta.json');
   const hasStaged = !patched && fs.existsSync(stagedPath);
+  let stagedStale = false;
+  if (hasStaged) {
+    try {
+      const stagedMeta = JSON.parse(fs.readFileSync(stagedMetaPath, 'utf-8'));
+      const currentFp = computeFileFingerprint(asarPath);
+      if (!stagedMeta || !stagedMeta.sourceFingerprint || stagedMeta.sourceFingerprint !== currentFp) {
+        stagedStale = true;
+      }
+    } catch (_) {
+      stagedStale = true;
+    }
+  }
   const statusLabel = patched
     ? '🟢 已安装宿主汉化补丁'
-    : (hasStaged ? '🟡 预注入已就绪 (app.asar.staged 已挂载，关闭客户端后自动秒级生效)' : '⚪ 原生未修改状态');
+    : (hasStaged
+      ? (stagedStale
+        ? '⚠️ 预注入已失效 (检测到官方客户端已升级，将在重装时自动清理重建)'
+        : '🟡 预注入已就绪 (app.asar.staged 已挂载且指纹校验一致，关闭客户端后自动秒级生效)')
+      : '⚪ 原生未修改状态');
   console.log(`• 汉化状态:     ${statusLabel}`);
 
   const pluginDir = getGlobalPluginTargetDir();

@@ -67,14 +67,11 @@
     "#ov-plain [data-testid='swarm-onboarding'] .o2-onb-steps b",
     "#ov-plain [data-testid='swarm-onboarding'] .o2-onb-steps div > span",
     "#ov-plain [data-testid='swarm-onboarding'] .o2-onb-wait > span",
-    "#tab-graph .segmented",
-    "#gview-hive",
-    "#gview-mentions",
-    "#graph-export-gif",
-    "#graph-export-gif-label",
-    "#gif-modal-close",
+    "#tab-graph #gview-hive",
+    "#tab-graph #gview-mentions",
+    "#tab-graph #graph-export-gif-label",
     "#gif-modal .gif-modal-hint",
-    "#gif-modal-open"
+    "#gif-modal #gif-modal-open"
   ],
   "attributeSelectors": [
     "#feed > article.msg > .msg-head .msg-author",
@@ -85,7 +82,10 @@
     ".o2-tvh > .o2-tvx",
     ".o2-tvstage > .o2-tvnav",
     ".o2-tvstrip[role='listbox']",
-    "#gif-modal-img"
+    "#tab-graph .segmented[role='group']",
+    "#tab-graph #graph-export-gif",
+    "#gif-modal #gif-modal-close",
+    "#gif-modal img#gif-modal-img[data-testid='swarm-gif-modal-img']"
   ],
   "exact": {
     ".": "。",
@@ -226,7 +226,7 @@
     "Open in new tab": "在新标签页中打开",
     "Waiting": "等待中",
     "Killed": "已终止",
-    "Waiting: turn ended, asleep on the board until a post wakes it": "等待中：本轮已结束，在看板上休眠直至新消息唤醒",
+    "Waiting: turn ended, asleep on the board until a post wakes it": "等待中：本轮已结束，收到新消息后唤醒",
     "Killed: removed from the swarm": "已终止：已从 Swarm 移除",
     "Hidden from the board; click to show": "已在看板中隐藏；点击显示",
     "Click to hide from the board": "点击在看板中隐藏",

@@ -2,12 +2,12 @@
 
 # Google Antigravity Chinese Plus (Simplified Chinese Localization & Live Translator)
 
-**Targets Antigravity App 2.35.1 & VS Code Extension 1.13.0 · Full UI Dictionary · `/` Slash Command Translations · Built-in Free Google Live Detail Translator**
+**Targets Antigravity App 2.35.2 & VS Code Extension 1.13.0 · Full UI Dictionary · `/` Slash Command Translations · Built-in Free Google Live Detail Translator**
 
 <p>
   <a href="https://github.com/mitang-ai/antigravity-chinese-plus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitang-ai/antigravity-chinese-plus/ci.yml?branch=main&amp;label=CI&amp;logo=github" alt="CI Status"></a>
-  <img src="https://img.shields.io/badge/Version-v3.4.3-2563eb" alt="Version v3.4.3">
-  <img src="https://img.shields.io/badge/Antigravity_App-2.35.1-10b981" alt="Targets Antigravity 2.35.1">
+  <img src="https://img.shields.io/badge/Version-v3.5.0-2563eb" alt="Version v3.5.0">
+  <img src="https://img.shields.io/badge/Antigravity_App-2.35.2-10b981" alt="Targets Antigravity 2.35.2">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-475569" alt="Supported Platforms">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18-16a34a?logo=node.js" alt="Requires Node.js 18+">
   <img src="https://img.shields.io/badge/Tests-14_Suites%20%7C%2045_Audits-0d9488" alt="14 Test Suites and 45 Audit Checks">
@@ -24,7 +24,7 @@
 
 </div>
 
-Google Antigravity currently ships without an official Simplified Chinese UI, and marketplace extension details along with built-in slash command descriptions are largely delivered dynamically. This open-source, source-only localization toolkit patches your local desktop client and VS Code extension while keeping a verified pristine backup — combining **5,093 exact UI entries**, **445 pattern rules**, **`/` slash command descriptions**, and a built-in **free Google live translator** with persistent local caching.
+Google Antigravity currently ships without an official Simplified Chinese UI, and marketplace extension details along with built-in slash command descriptions are largely delivered dynamically. This open-source, source-only localization toolkit patches your local desktop client and VS Code extension while keeping a verified pristine backup — combining **5,117 exact UI entries**, **445 pattern rules**, **`/` slash command descriptions**, and a built-in **free Google live translator** with persistent local caching.
 
 > **Source-Only & Privacy-First**: This repository distributes scripts and dictionaries only — never proprietary binaries (`app.asar`), and never collects or transmits user chat messages, credentials, or source code.
 
@@ -44,7 +44,7 @@ Google Antigravity currently ships without an official Simplified Chinese UI, an
 
 | Surface | Mechanism | Scope & Guardrails |
 | --- | --- | --- |
-| Settings, sidebar, permissions, Swarm UI, onboarding | Static dictionary + pattern rules | 5,093 exact entries & 445 regex patterns |
+| Settings, sidebar, permissions, Swarm UI, onboarding | Static dictionary + pattern rules | 5,117 exact entries & 445 regex patterns |
 | `/` slash command popup & built-in skills | Static dict + live fallback | Translates descriptions only; command names, `dir="rtl"` paths & React payloads stay intact |
 | Native menus, tray, disconnected & device dialogs | Electron main-process patches | Covers `menu`, `ipcHandlers`, `disconnectedPage`, `deviceChooser`, `signInCallback` |
 | Plugin/skill detail pages & Markdown READMEs | Free Google Translate + local cache | Protects `<pre>` and inline `<code>`; adaptive bottom-right bar with one-click Original toggle |
@@ -137,8 +137,8 @@ No API key is needed. The main-process bridge ([live-translate-main.js](core/liv
 
 ## Verification, Architecture & Upstream Attribution
 
-- **Verification Summary (Windows x64 · Antigravity App 2.35.1 / 2.35.0)**:
-  - `npm run build:dict`: Builds **5,093** exact entries and **445** regex rules into [dict/zh-CN.json](dict/zh-CN.json) and [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json).
+- **Verification Summary (Windows x64 · Antigravity App 2.35.2 / 2.35.1 / 2.35.0)**:
+  - `npm run build:dict`: Builds **5,117** exact entries and **445** regex rules into [dict/zh-CN.json](dict/zh-CN.json) and [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json).
   - `npm test` (aggregating 14 test suites): Runs syntax lint, golden UI verification, JSDOM user-content isolation, Swarm panel isolation, scan performance benchmarks, ASAR backup/upgrade lifecycle, VS Code proxy patch checks, and live-translator unit tests, followed by 45 static consistency checks in `tools/ultimate-consistency-audit.js`.
   - See [docs/maintenance/antigravity-2.35.0.md](docs/maintenance/antigravity-2.35.0.md) for the 2.35.0 / 2.35.1 inspection baseline. macOS and Linux coverage consists of cross-platform automated regressions; VS Code 1.13.0 was not installed locally for live testing in this round.
 
@@ -150,7 +150,7 @@ npm run audit        # Run the 45-check static consistency audit
 
 ### Attribution & License
 
-- **Upstream Attribution**: Built upon and extended from the MIT-licensed open-source project [yiheng8023/antigravity-chinese](https://github.com/yiheng8023/antigravity-chinese) and its community contributors (`a705876883-arch`, `fansID512`, `MizuIro-H`, `tangyixiao`, `Qiinn-71`, etc.). This fork/edition adds full Antigravity App `2.35.0 / 2.35.1` adaptation, built-in `/` slash command localization, the built-in Google live detail translator with persistent caching, multi-drive/registry auto-detection, and the hardened interactive Windows installer.
+- **Upstream Attribution**: Built upon and extended from the MIT-licensed open-source project [yiheng8023/antigravity-chinese](https://github.com/yiheng8023/antigravity-chinese) and its community contributors (`a705876883-arch`, `fansID512`, `MizuIro-H`, `tangyixiao`, `Qiinn-71`, etc.). This fork/edition adds full Antigravity App `2.35.0–2.35.2` adaptation, built-in `/` slash command localization, the built-in Google live detail translator with persistent caching, multi-drive/registry auto-detection, and the hardened interactive Windows installer.
 - **Disclaimer**: Independent community utility, not affiliated with or endorsed by Google LLC.
 - **License**: Released under the [MIT License](LICENSE).
 
