@@ -1,6 +1,6 @@
 {
   "name": "antigravity-chinese",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "description": "Antigravity 桌面与 VS Code 扩展中文本地化、斜杠指令翻译、Google 详情实时翻译与备份还原工具 (Community Chinese localization and live translator)",
   "main": "cli.js",
   "homepage": "https://github.com/mitang-ai/antigravity-chinese-plus#readme",
@@ -20,7 +20,7 @@
   "scripts": {
     "build:dict": "node tools/build-dict.js",
     "audit": "node tools/ultimate-consistency-audit.js",
-    "test": "node test/test-lint.js && node test/verify.js && node test/test-screenshots.js && node test/test-cdp.js && node test/test-menu-and-titles.js && node test/test-asar-lifecycle.js && node test/test-detector-live.js && node test/test-proofread-integrity.js && node test/test-vscode-patch.js && node --test test/test-regressions.js && node --test test/test-user-content.js && node --test test/test-swarm.js && node --test test/test-runtime-performance.js && node --test test/test-live-translator.js && node tools/ultimate-consistency-audit.js",
+    "test": "node test/test-lint.js && node test/verify.js && node test/test-screenshots.js && node test/test-cdp.js && node test/test-menu-and-titles.js && node test/test-asar-lifecycle.js && node test/test-detector-live.js && node test/test-proofread-integrity.js && node test/test-vscode-patch.js && node --test test/test-regressions.js && node --test test/test-user-content.js && node --test test/test-swarm.js && node --test test/test-runtime-performance.js && node --test test/test-live-translator.js && node --test test/test-guardian.js && node tools/ultimate-consistency-audit.js",
     "test:verify": "node test/verify.js",
     "test:screenshots": "node test/test-screenshots.js",
     "test:cdp": "node test/test-cdp.js",

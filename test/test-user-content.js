@@ -8,6 +8,8 @@ const runtime = fs.readFileSync(process.env.AGY_TEST_RUNTIME || path.join(__dirn
 const dictionary = require('../dict/zh-CN.json');
 const officialPluginDescriptions = require('../dict/scoped/official-plugin-descriptions.json');
 const { installOfficialPluginDescriptionSourceCheck } = require('../core/official-plugin-description-source');
+const builtinSlashDescriptions = require('../dict/scoped/builtin-slash-descriptions.json');
+const { installBuiltinSlashDescriptionSourceCheck } = require('../core/builtin-slash-command-source');
 
 test('2.35 automation form translates display text and preserves the draft and option names', async t => {
   const placeholder = 'What should the agent do on each run? For example: summarize new bugs assigned to me and anything that changed overnight.';
@@ -588,13 +590,17 @@ async function fixture(t, html, options = {}) {
   const dom = new JSDOM('<!doctype html><body>' + html + '</body>', {
     runScripts: 'outside-only',
     pretendToBeVisual: true,
-    url: options.url || (options.pluginDescriptions ? 'https://127.0.0.1:1500/' : undefined)
+    url: options.url || ((options.pluginDescriptions || options.builtinSlash) ? 'https://127.0.0.1:1500/' : undefined)
   });
   t.after(() => dom.window.close());
   const { window } = dom;
-  window.__AGY_I18N_DATA__ = options.pluginDescriptions ? { ...dictionary, officialPluginDescriptions } : dictionary;
+  const data = { ...dictionary };
+  if (options.pluginDescriptions) data.officialPluginDescriptions = officialPluginDescriptions;
+  if (options.builtinSlash) data.builtinSlashDescriptions = builtinSlashDescriptions;
+  window.__AGY_I18N_DATA__ = data;
   options.beforeStart?.(window.document);
   if (options.pluginDescriptions) window.eval(`(${installOfficialPluginDescriptionSourceCheck})(${JSON.stringify(officialPluginDescriptions)})`);
+  if (options.builtinSlash) window.eval(`(${installBuiltinSlashDescriptionSourceCheck})(${JSON.stringify(builtinSlashDescriptions)})`);
   window.eval(runtime);
   await (options.waitForInitialTranslation || settle)(window);
   return { window, document: window.document, translate: window.__AGY_TRANSLATE_EL__ };
@@ -1949,4 +1955,52 @@ test('2.35 slash menu preserves dir=rtl Before paths and dynamically retranslate
   assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
   assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
   assert.equal(rtlDesc.textContent, 'Before');
+});
+
+test('builtin slash command descriptions follow verified SYSTEM provenance and protect custom skills', async t => {
+  function attachOptionFiber(descEl, itemObj) {
+    const root = { tag: 3 };
+    root.stateNode = { current: root };
+    const rowFiber = { memoizedProps: { item: itemObj }, return: root };
+    descEl.__reactFiber$fixture = { stateNode: descEl, return: rowFiber };
+    return rowFiber;
+  }
+  const makeSystemSlash = (name, text) => ({
+    item: { scopeItem: { case: 'slashCommand', value: { info: { name, type: 1 } } } },
+    getRenderInfo: () => ({ description: { text } })
+  });
+  const makeRecipeSkill = (name, text) => ({
+    item: { scopeItem: { case: 'recipe', value: { title: name, description: text } } },
+    getRenderInfo: () => ({ description: { text } })
+  });
+  const planSrc = 'Plan carefully before executing a task.';
+  let planRowFiber;
+  const { document, window } = await fixture(t, `
+    <div role="listbox" data-mention-menu="">
+      <div role="option" id="opt-sys-plan">
+        <span data-testid="menu-option-label">/plan</span>
+        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+      <div role="option" id="opt-user-recipe">
+        <span data-testid="menu-option-label">custom-plan</span>
+        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+    </div>`, {
+    builtinSlash: true,
+    beforeStart(doc) {
+      planRowFiber = attachOptionFiber(doc.querySelector('#opt-sys-plan [data-testid="menu-option-description"]'), makeSystemSlash('plan', planSrc));
+      attachOptionFiber(doc.querySelector('#opt-user-recipe [data-testid="menu-option-description"]'), makeRecipeSkill('custom-plan', planSrc));
+    }
+  });
+  const sysDesc = document.querySelector('#opt-sys-plan [data-testid="menu-option-description"]');
+  const userDesc = document.querySelector('#opt-user-recipe [data-testid="menu-option-description"]');
+  assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(userDesc.textContent, planSrc);
+
+  // 节点被复用为自定义技能时应立即还原原文
+  document.querySelector('#opt-sys-plan [data-testid="menu-option-label"]').textContent = 'my-skill';
+  planRowFiber.memoizedProps.item = makeRecipeSkill('my-skill', planSrc);
+  sysDesc.textContent = planSrc;
+  await settle(window);
+  assert.equal(sysDesc.textContent, planSrc);
 });

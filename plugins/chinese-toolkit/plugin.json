@@ -1,6 +1,7 @@
 {
   "name": "antigravity-chinese-toolkit",
-  "description": "Antigravity 社区中文插件：中文交互规则与本地化维护诊断 (Community Chinese Localization & Diagnostics Plugin)",
-  "version": "3.5.0",
+  "displayName": "Antigravity 中文汉化守护",
+  "description": "Antigravity 社区中文插件：内置「中文汉化守护」侧边栏驾驶舱（跨版本保持旧译、在线更新、重启提醒）与本地化交互规则",
+  "version": "3.6.0",
   "author": "Antigravity Open Source Community"
 }

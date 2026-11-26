@@ -6,11 +6,11 @@
 
 <p>
   <a href="https://github.com/mitang-ai/antigravity-chinese-plus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitang-ai/antigravity-chinese-plus/ci.yml?branch=main&amp;label=CI&amp;logo=github" alt="CI Status"></a>
-  <img src="https://img.shields.io/badge/Version-v3.5.0-2563eb" alt="Version v3.5.0">
+  <img src="https://img.shields.io/badge/Version-v3.6.0-2563eb" alt="Version v3.6.0">
   <img src="https://img.shields.io/badge/Antigravity_App-2.35.2-10b981" alt="Targets Antigravity 2.35.2">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-475569" alt="Supported Platforms">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18-16a34a?logo=node.js" alt="Requires Node.js 18+">
-  <img src="https://img.shields.io/badge/Tests-14_Suites%20%7C%2045_Audits-0d9488" alt="14 Test Suites and 45 Audit Checks">
+  <img src="https://img.shields.io/badge/Tests-15_Suites%20%7C%2045_Audits-0d9488" alt="15 Test Suites and 45 Audit Checks">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-f59e0b" alt="MIT License"></a>
 </p>
 
@@ -139,12 +139,12 @@ No API key is needed. The main-process bridge ([live-translate-main.js](core/liv
 
 - **Verification Summary (Windows x64 · Antigravity App 2.35.2 / 2.35.1 / 2.35.0)**:
   - `npm run build:dict`: Builds **5,117** exact entries and **445** regex rules into [dict/zh-CN.json](dict/zh-CN.json) and [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json).
-  - `npm test` (aggregating 14 test suites): Runs syntax lint, golden UI verification, JSDOM user-content isolation, Swarm panel isolation, scan performance benchmarks, ASAR backup/upgrade lifecycle, VS Code proxy patch checks, and live-translator unit tests, followed by 45 static consistency checks in `tools/ultimate-consistency-audit.js`.
+  - `npm test` (aggregating 15 test suites): Runs syntax lint, golden UI verification, JSDOM user-content isolation, Swarm panel isolation, scan performance benchmarks, ASAR backup/upgrade lifecycle, VS Code proxy patch checks, live-translator unit tests, and persistent guardian/hot-override checks (`test-guardian.js`), followed by 45 static consistency checks in `tools/ultimate-consistency-audit.js`.
   - See [docs/maintenance/antigravity-2.35.0.md](docs/maintenance/antigravity-2.35.0.md) for the 2.35.0 / 2.35.1 inspection baseline. macOS and Linux coverage consists of cross-platform automated regressions; VS Code 1.13.0 was not installed locally for live testing in this round.
 
 ```bash
 npm run build:dict   # Compile layered dictionaries under dict/src/
-npm test             # Run all 14 test suites and consistency audit
+npm test             # Run all 15 test suites and consistency audit
 npm run audit        # Run the 45-check static consistency audit
 ```
 

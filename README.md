@@ -6,11 +6,11 @@
 
 <p>
   <a href="https://github.com/mitang-ai/antigravity-chinese-plus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitang-ai/antigravity-chinese-plus/ci.yml?branch=main&amp;label=CI&amp;logo=github" alt="CI 构建状态"></a>
-  <img src="https://img.shields.io/badge/Version-v3.5.0-2563eb" alt="当前版本 v3.5.0">
+  <img src="https://img.shields.io/badge/Version-v3.6.0-2563eb" alt="当前版本 v3.6.0">
   <img src="https://img.shields.io/badge/Antigravity_App-2.35.2-10b981" alt="适配 Antigravity 2.35.2">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-475569" alt="支持平台 Windows macOS Linux">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18-16a34a?logo=node.js" alt="需要 Node.js 18 及以上">
-  <img src="https://img.shields.io/badge/Tests-14_Suites%20%7C%2045_Audits-0d9488" alt="14 套测试与 45 项一致性审计">
+  <img src="https://img.shields.io/badge/Tests-15_Suites%20%7C%2045_Audits-0d9488" alt="15 套测试与 45 项一致性审计">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-f59e0b" alt="MIT 开源协议"></a>
 </p>
 
@@ -157,7 +157,7 @@ Google Antigravity（反重力）目前没有官方中文界面，且扩展市�
 
 - **当前验证数据（Windows x64 · Antigravity App 2.35.2 / 2.35.1 / 2.35.0）**：
   - `npm run build:dict`：编译产出 **5,117** 条精确词条与 **445** 组级联正则（[dict/zh-CN.json](dict/zh-CN.json) & [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json)）。
-  - `npm test`（**聚合 14 套自动化测试**）：涵盖语法编译门禁、UI 黄金语义、JSDOM 内容保护边界、Swarm 面板隔离、性能扫描基准、ASAR 升级与断电回滚生命周期、VS Code 微代理补丁，以及 Google 实时翻译与斜杠高亮专项测试，最后串联 `tools/ultimate-consistency-audit.js`（45 项静态一致性检查）。
+  - `npm test`（**聚合 15 套自动化测试**）：涵盖语法编译门禁、UI 黄金语义、JSDOM 内容保护边界、Swarm 面板隔离、性能扫描基准、ASAR 升级与断电回滚生命周期、VS Code 微代理补丁、Google 实时翻译、斜杠高亮及外置持久化守护 (`test-guardian.js`) 专项测试，最后串联 `tools/ultimate-consistency-audit.js`（45 项静态一致性检查）。
   - 实机适配依据见 [2.35.0 / 2.35.1 维护记录](docs/maintenance/antigravity-2.35.0.md)；`macOS`、`Linux` 及 `VS Code` 扩展部分在本轮中的验证范围为跨平台自动化回归与脚本链路核验。
   - **macOS 应用内更新提示**：Apple Silicon 设备上汉化后的重签若导致系统增量更新验签失败，请退出应用后直接从 [官方下载](https://antigravity.google/download) 重装完整客户端并重新应用本汉化工具。
 
@@ -177,14 +177,14 @@ antigravity-chinese-plus/
 ├── dict/
 │   ├── src/                        # 分层词库源码（core / ctx / rules）
 │   └── scoped/                     # Swarm 词库与官方插件短介绍词库
-├── plugins/chinese-toolkit/        # 社区中文交互规范插件与维护诊断技能
-├── test/                           # 14 套自动化测试入口与 UI 基准夹具
+├── plugins/chinese-toolkit/        # 社区中文交互规范插件与「中文汉化守护」Sidecar 驾驶舱
+├── test/                           # 15 套自动化测试入口与 UI 基准夹具
 └── tools/                          # 词库构建管线、漂移检测、UI 清单核验与一致性审计
 ```
 
 ```bash
 npm run build:dict   # 从 dict/src 编译交付词库
-npm test             # 运行全部 14 套自动化测试与一致性审计
+npm test             # 运行全部 15 套自动化测试与一致性审计
 npm run audit        # 仅运行 45 项静态一致性体检
 ```
 

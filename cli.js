@@ -13,6 +13,8 @@ const { execSync } = require('child_process');
 const { getUnpackArgs, verifyUnpackedOutput } = require('./core/asar-unpack');
 const { patchSwarmFrames } = require('./core/swarm-frame-patch');
 const { installOfficialPluginDescriptionSourceCheck } = require('./core/official-plugin-description-source');
+const { installBuiltinSlashDescriptionSourceCheck } = require('./core/builtin-slash-command-source');
+const guardianCore = require('./core/guardian-core');
 
 const PROJECT_ROOT = __dirname;
 const DICT_PATH = path.join(PROJECT_ROOT, 'dict', 'zh-CN.json');
@@ -291,18 +293,90 @@ function getBundleScript() {
     ? fs.readFileSync(LIVE_TRANSLATOR_PATH, 'utf-8')
     : '';
   const pluginDescriptions = fs.readFileSync(path.join(PROJECT_ROOT, 'dict/scoped/official-plugin-descriptions.json'), 'utf-8');
+  const slashDescriptionsPath = path.join(PROJECT_ROOT, 'dict/scoped/builtin-slash-descriptions.json');
+  const slashDescriptions = fs.existsSync(slashDescriptionsPath)
+    ? fs.readFileSync(slashDescriptionsPath, 'utf-8')
+    : '{}';
   const checkPluginSource = `(${installOfficialPluginDescriptionSourceCheck})(${pluginDescriptions.trim()});`;
+  const checkSlashSource = `(${installBuiltinSlashDescriptionSourceCheck})(${slashDescriptions.trim()});`;
 
   return `
 // --- Antigravity Chinese Localization Injection Start ---
 (function() {
   try {
-    window.__AGY_I18N_DATA__ = ${dictContent.trim()};
-    window.__AGY_I18N_DATA__.officialPluginDescriptions = ${pluginDescriptions.trim()};
-    ${runtimeContent}
-    ${liveTranslatorContent}
+    var __agyData = ${dictContent.trim()};
+    var __agyPluginDescs = ${pluginDescriptions.trim()};
+    var __agySlashDescs = ${slashDescriptions.trim()};
+    var __agyRuntimeCode = null;
+    var __agyLiveCode = null;
+    var __agyExtCheckPlugin = null;
+    var __agyExtCheckSlash = null;
+
+    // 持久化外置热加载层：优先读取用户目录 ~/.gemini/antigravity-chinese-plus/runtime/ 下的新版词库与运行时，
+    // 即使客户端升级或仅需词库热修补也能优先命中外置新版，失败时无缝回退至内嵌离线版本。
+    try {
+      if (typeof require === 'function') {
+        var __fs = require('fs');
+        var __path = require('path');
+        var __os = require('os');
+        var __plusHome = process.env.AGY_PLUS_HOME || __path.join(__os.homedir(), '.gemini', 'antigravity-chinese-plus');
+        var __rtDir = __path.join(__plusHome, 'runtime');
+        var __extDictFile = __path.join(__rtDir, 'dict', 'zh-CN.json');
+        if (__fs.existsSync(__extDictFile)) {
+          var __parsedDict = JSON.parse(__fs.readFileSync(__extDictFile, 'utf8'));
+          if (__parsedDict && __parsedDict.exact) __agyData = __parsedDict;
+        }
+        var __extPluginFile = __path.join(__rtDir, 'dict', 'scoped', 'official-plugin-descriptions.json');
+        if (__fs.existsSync(__extPluginFile)) {
+          var __parsedPlugin = JSON.parse(__fs.readFileSync(__extPluginFile, 'utf8'));
+          if (__parsedPlugin && typeof __parsedPlugin === 'object') {
+            __agyPluginDescs = __parsedPlugin;
+            var __extPluginSrcMod = require(__path.join(__rtDir, 'core', 'official-plugin-description-source.js'));
+            if (__extPluginSrcMod && typeof __extPluginSrcMod.installOfficialPluginDescriptionSourceCheck === 'function') {
+              __agyExtCheckPlugin = '(' + __extPluginSrcMod.installOfficialPluginDescriptionSourceCheck + ')(' + JSON.stringify(__agyPluginDescs) + ');';
+            }
+          }
+        }
+        var __extSlashFile = __path.join(__rtDir, 'dict', 'scoped', 'builtin-slash-descriptions.json');
+        if (__fs.existsSync(__extSlashFile)) {
+          var __parsedSlash = JSON.parse(__fs.readFileSync(__extSlashFile, 'utf8'));
+          if (__parsedSlash && typeof __parsedSlash === 'object') {
+            __agySlashDescs = __parsedSlash;
+            var __extSlashSrcMod = require(__path.join(__rtDir, 'core', 'builtin-slash-command-source.js'));
+            if (__extSlashSrcMod && typeof __extSlashSrcMod.installBuiltinSlashDescriptionSourceCheck === 'function') {
+              __agyExtCheckSlash = '(' + __extSlashSrcMod.installBuiltinSlashDescriptionSourceCheck + ')(' + JSON.stringify(__agySlashDescs) + ');';
+            }
+          }
+        }
+        var __extRuntimeFile = __path.join(__rtDir, 'core', 'i18n-runtime.js');
+        if (__fs.existsSync(__extRuntimeFile)) {
+          __agyRuntimeCode = __fs.readFileSync(__extRuntimeFile, 'utf8');
+        }
+        var __extLiveFile = __path.join(__rtDir, 'core', 'live-translator.js');
+        if (__fs.existsSync(__extLiveFile)) {
+          __agyLiveCode = __fs.readFileSync(__extLiveFile, 'utf8');
+        }
+      }
+    } catch (_extErr) {}
+
+    window.__AGY_I18N_DATA__ = __agyData;
+    window.__AGY_I18N_DATA__.officialPluginDescriptions = __agyPluginDescs;
+    window.__AGY_I18N_DATA__.builtinSlashDescriptions = __agySlashDescs;
+
+    if (__agyRuntimeCode) {
+      new Function(__agyRuntimeCode)();
+    } else {
+      ${runtimeContent}
+    }
+    if (__agyLiveCode) {
+      new Function(__agyLiveCode)();
+    } else {
+      ${liveTranslatorContent}
+    }
     if (window.top === window) {
-      require('electron').webFrame.executeJavaScript(${JSON.stringify(checkPluginSource)}).catch(() => {});
+      var __finalCheckPlugin = __agyExtCheckPlugin || ${JSON.stringify(checkPluginSource)};
+      var __finalCheckSlash = __agyExtCheckSlash || ${JSON.stringify(checkSlashSource)};
+      require('electron').webFrame.executeJavaScript(__finalCheckPlugin + '\\n' + __finalCheckSlash).catch(() => {});
     }
   } catch(e) {
     console.error('[AGY-i18n] Runtime Injection Error:', e);
@@ -992,6 +1066,11 @@ function install(customPath) {
         console.log('✨ 已挂载后台静默守候进程：当您稍后正常关闭 Antigravity 客户端时，');
         console.log('✨ 将在 0.5 秒内自动完成原子替换，下次打开即刻呈现中文界面！');
         console.log('✨ ==============================================\n');
+        if (process.env.NODE_ENV !== 'test' && (!customPath || process.env.AGY_PLUS_HOME)) {
+          try {
+            guardianCore.syncRuntimeFromDir(PROJECT_ROOT);
+          } catch (_) {}
+        }
         return;
       }
 
@@ -1020,6 +1099,12 @@ function install(customPath) {
     const metaPath = path.join(resourcesDir, '.antigravity_chinese_meta.json');
     const newAsarFp = getAsarFingerprint(asarPath);
     fs.writeFileSync(metaPath, JSON.stringify({ patched: true, patchedFingerprint: newAsarFp, timestamp: Date.now() }, null, 2), 'utf8');
+
+    if (process.env.NODE_ENV !== 'test' && (!customPath || process.env.AGY_PLUS_HOME)) {
+      try {
+        guardianCore.syncRuntimeFromDir(PROJECT_ROOT);
+      } catch (_) {}
+    }
 
     // Clean temp
     if (fs.existsSync(tempExtractDir)) {
@@ -1402,27 +1487,23 @@ function copyDirRecursiveSync(srcDir, destDir) {
 }
 
 function installPlugin() {
-  console.log('🔌 正在安装 Antigravity 社区中文智能体插件...');
+  console.log('🔌 正在安装 Antigravity 社区中文智能体插件与守护驾驶舱...');
   const srcPluginDir = path.join(PROJECT_ROOT, 'plugins', 'chinese-toolkit');
   const targetDir = getGlobalPluginTargetDir();
-  
+
   if (!fs.existsSync(srcPluginDir)) {
     console.error('❌ 未找到插件源目录:', srcPluginDir);
     return;
   }
-  
-  const parentDir = path.dirname(targetDir);
-  if (!fs.existsSync(parentDir)) {
-    fs.mkdirSync(parentDir, { recursive: true });
+
+  guardianCore.ensurePluginInstalledAndEnabled(srcPluginDir, { pluginTargetDir: targetDir });
+  if (process.env.NODE_ENV !== 'test') {
+    try {
+      guardianCore.syncRuntimeFromDir(PROJECT_ROOT);
+    } catch (_) {}
   }
-  
-  if (fs.existsSync(targetDir)) {
-    fs.rmSync(targetDir, { recursive: true, force: true });
-  }
-  
-  copyDirRecursiveSync(srcPluginDir, targetDir);
-  console.log(`✅ 插件已成功安装至全局目录: ${targetDir}`);
-  console.log('🎉 智能体中文交互规则 (Rules) 与 本地化诊断技能 (Skills) 已就绪！\n');
+  console.log(`✅ 插件已安装并自动启用: ${targetDir}`);
+  console.log('🎉 中文交互规则 (Rules)、诊断技能 (Skills) 与侧边栏「中文汉化守护」驾驶舱已就绪！\n');
 }
 
 function uninstallPlugin() {
@@ -1882,6 +1963,18 @@ if (require.main === module) {
     case 'daemon':
       watch(customPath);
       break;
+    case 'sync-guardian': {
+      const synced = guardianCore.syncRuntimeFromDir(PROJECT_ROOT);
+      console.log(`✅ 外置持久化运行中心已同步 (v${synced.version}): ${synced.runtimeDir}`);
+      installPlugin();
+      break;
+    }
+    case 'create-shortcut': {
+      guardianCore.syncRuntimeFromDir(PROJECT_ROOT);
+      const sc = guardianCore.createSelfHealingShortcut();
+      console.log(`✅ 已生成桌面中文自愈快捷方式: ${sc.shortcutPath}`);
+      break;
+    }
     case 'help':
     default:
       console.log(`

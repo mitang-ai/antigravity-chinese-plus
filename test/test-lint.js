@@ -12,6 +12,8 @@ console.log('🧪 ============================================================\n
 const filesToCheck = [
   'cli.js',
   'core/i18n-runtime.js',
+  'core/guardian-core.js',
+  'core/builtin-slash-command-source.js',
   'core/live-translate-main.js',
   'core/live-translator.js',
   'test/verify.js',
