@@ -17,6 +17,34 @@ const https = require('https');
 const crypto = require('crypto');
 const { execFileSync, spawn } = require('child_process');
 
+// 关闭 Electron 内置 .asar 虚拟文件系统拦截，确保在 Sidecar (Antigravity.exe) 下也能正确探测和读写物理 app.asar
+process.noAsar = true;
+
+/**
+ * 解析可靠的纯 Node 可执行文件路径（Sidecar 宿主下 process.execPath 为 Antigravity.exe，需优先查找系统 node.exe）。
+ */
+function resolveNodeExecutable() {
+  if (!process.versions || !process.versions.electron) {
+    return { command: process.execPath, isElectronNode: false };
+  }
+  const candidates = os.platform() === 'win32'
+    ? [
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node.exe'),
+      path.join(process.env.ProgramFiles || 'C:\\Program Files', 'nodejs', 'node'),
+    ]
+    : ['/usr/local/bin/node', '/usr/bin/node'];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return { command: c, isElectronNode: false };
+  }
+  try {
+    const cmd = os.platform() === 'win32' ? 'where' : 'which';
+    const out = execFileSync(cmd, ['node'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const first = out.split(/\r?\n/).map(s => s.trim()).find(Boolean);
+    if (first && fs.existsSync(first)) return { command: first, isElectronNode: false };
+  } catch (_) {}
+  return { command: process.execPath, isElectronNode: true };
+}
+
 const DEFAULT_REPO_SLUG = 'mitang-ai/antigravity-chinese-plus';
 const MIN_CHECK_INTERVAL_MS = 30 * 60 * 1000;
 
@@ -629,13 +657,15 @@ function runRuntimeInstall(plusHome = getPlusHomeDir(), customPath = null) {
   }
   const args = [runtimeCli, 'install'];
   if (customPath) args.push('--path', customPath);
+  const nodeInfo = resolveNodeExecutable();
   const env = {
     ...process.env,
     ANTIGRAVITY_AGENT: '1',
     AGY_NO_KILL: '1',
     AGY_PLUS_HOME: plusHome
   };
-  const output = execFileSync(process.execPath, args, { encoding: 'utf8', env, maxBuffer: 8 * 1024 * 1024 });
+  if (nodeInfo.isElectronNode) env.ELECTRON_RUN_AS_NODE = '1';
+  const output = execFileSync(nodeInfo.command, args, { encoding: 'utf8', env, maxBuffer: 8 * 1024 * 1024 });
   return output;
 }
 
@@ -752,6 +782,7 @@ function scheduleGracefulRestart(options = {}) {
   const helperScriptPath = path.join(os.tmpdir(), `agy-graceful-restart-${process.pid}-${Date.now()}.js`);
 
   const helperCode = `
+process.noAsar = true;
 const fs = require('fs');
 const path = require('path');
 const { execSync, spawn } = require('child_process');
@@ -761,8 +792,12 @@ const exePath = ${JSON.stringify(appExePath)};
 
 function isRunningWin() {
   try {
-    const out = execSync('tasklist /FI "IMAGENAME eq Antigravity.exe" /NH', { encoding: 'utf8' });
-    return out.toLowerCase().includes('antigravity.exe');
+    const out = execSync('tasklist /FI "IMAGENAME eq Antigravity.exe" /FO CSV /NH', { encoding: 'utf8' });
+    const lines = out.split(/\\r?\\n/).filter(l => l.toLowerCase().includes('antigravity.exe'));
+    return lines.some(line => {
+      const m = line.match(/"[^"]+","(\\d+)"/);
+      return !m || Number(m[1]) !== process.pid;
+    });
   } catch (_) {
     return false;
   }
@@ -795,7 +830,9 @@ const timer = setInterval(() => {
       } catch (_) {}
       try {
         if (fs.existsSync(exePath)) {
-          const child = spawn(exePath, [], { detached: true, stdio: 'ignore' });
+          const guiEnv = { ...process.env };
+          delete guiEnv.ELECTRON_RUN_AS_NODE;
+          const child = spawn(exePath, [], { detached: true, stdio: 'ignore', env: guiEnv });
           child.unref();
         }
       } catch (_) {}
@@ -806,11 +843,15 @@ const timer = setInterval(() => {
 }, 250);
 `;
 
+  const nodeInfo = resolveNodeExecutable();
+  const helperEnv = { ...process.env };
+  if (nodeInfo.isElectronNode) helperEnv.ELECTRON_RUN_AS_NODE = '1';
   fs.writeFileSync(helperScriptPath, helperCode, 'utf8');
-  const child = spawn(process.execPath, [helperScriptPath], {
+  const child = spawn(nodeInfo.command, [helperScriptPath], {
     detached: true,
     stdio: 'ignore',
-    windowsHide: true
+    windowsHide: true,
+    env: helperEnv
   });
   child.unref();
 
@@ -838,9 +879,12 @@ function createSelfHealingShortcut(plusHome = getPlusHomeDir()) {
   const runtimeCli = path.join(runtimeDir, 'cli.js');
   const lnkPath = getSelfHealingShortcutPath();
 
+  const nodeInfo = resolveNodeExecutable();
+  const agyNodeCmd = path.join(process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming'), 'Antigravity', 'bin', 'agy-node.cmd');
+  const launcherBin = (nodeInfo.isElectronNode && fs.existsSync(agyNodeCmd)) ? agyNodeCmd : nodeInfo.command;
   const vbsContent = [
     'Set WshShell = CreateObject("WScript.Shell")',
-    `WshShell.Run """" & "${process.execPath}" & """ """ & "${runtimeCli}" & """ launch", 0, False`
+    `WshShell.Run """" & "${launcherBin}" & """ """ & "${runtimeCli}" & """ launch", 0, False`
   ].join('\r\n');
   fs.mkdirSync(plusHome, { recursive: true });
   fs.writeFileSync(launcherVbs, vbsContent, 'utf8');
@@ -876,6 +920,7 @@ module.exports = {
   getManifestPath,
   getUpdateCachePath,
   getDefaultPluginTargetDir,
+  resolveNodeExecutable,
   compareSemver,
   loadManifest,
   saveManifest,

@@ -123,6 +123,9 @@ test('ensureLegacyTranslationPreserved builds staged package for simulated newly
       isProcessRunning: () => true
     });
     assert.equal(stagedStateCheck.client.stagedState, 'ready');
+    assert.equal(process.noAsar, true);
+    const nodeResolved = guardian.resolveNodeExecutable();
+    assert.ok(nodeResolved && typeof nodeResolved.command === 'string' && nodeResolved.command.length > 0);
   } finally {
     if (prevPlus === undefined) delete process.env.AGY_PLUS_HOME;
     else process.env.AGY_PLUS_HOME = prevPlus;

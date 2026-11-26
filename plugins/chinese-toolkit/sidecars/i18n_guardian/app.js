@@ -136,6 +136,11 @@
     }
     if (busy && label) {
       $('top-subtitle').textContent = label;
+    } else if (!busy && latestSnapshot) {
+      const client = latestSnapshot.state?.client || {};
+      $('top-subtitle').textContent = client.patched
+        ? '中文化正常 · 长期自动护航中'
+        : (client.stagedState === 'ready' ? '新补丁待重启生效' : '中文守护面板');
     }
   }
 

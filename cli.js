@@ -9,6 +9,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+
+// 当在 Electron (如 Antigravity.exe + ELECTRON_RUN_AS_NODE=1 Sidecar) 中运行时，
+// 关闭内置 .asar 虚拟文件系统拦截，确保 fs.statSync(app.asar).isFile() 与文件读写作用于物理包。
+process.noAsar = true;
 const { execSync } = require('child_process');
 const { getUnpackArgs, verifyUnpackedOutput } = require('./core/asar-unpack');
 const { patchSwarmFrames } = require('./core/swarm-frame-patch');
@@ -1053,10 +1057,13 @@ function install(customPath) {
 
         try {
           const { spawn } = require('child_process');
+          const spawnEnv = { ...process.env };
+          if (process.versions && process.versions.electron) spawnEnv.ELECTRON_RUN_AS_NODE = '1';
           const child = spawn(process.execPath, [__filename, 'apply-staged', '--path', asarPath], {
             detached: true,
             stdio: 'ignore',
-            windowsHide: true
+            windowsHide: true,
+            env: spawnEnv
           });
           child.unref();
         } catch (_) {}

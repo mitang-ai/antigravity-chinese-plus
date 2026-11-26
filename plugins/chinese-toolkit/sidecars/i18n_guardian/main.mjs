@@ -13,6 +13,9 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+// Sidecar 由 Antigravity.exe (ELECTRON_RUN_AS_NODE=1) 拉起，关闭 .asar 虚拟目录拦截以正常读写物理 app.asar
+process.noAsar = true;
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const NO_STORE = { 'Cache-Control': 'no-store' };
