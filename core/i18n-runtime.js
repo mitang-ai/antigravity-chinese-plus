@@ -295,15 +295,17 @@
     if (testId) {
       if (testId === 'model-selector-trigger' ||
           testId === 'model-selector-item' ||
+          testId === 'model-selector-orchestrator' ||
           testId === 'model-selector-effort-option' ||
           testId === 'model-selector-effort-group' ||
+          testId === 'orchestrator-picker-row' ||
           testId === 'model-selector-list') {
         return true;
       }
     }
     return elem.hasAttribute('data-effort') ||
-      // 按推理强度分组的模型行同时渲染标签与徽标，需要整行保留原文（如 "New" 徽标）
-      (elem.classList && elem.classList.contains('agy-overlay-item') &&
+      // The grouped row renders the effort label and model badge as siblings.
+      (elem.classList.contains('agy-overlay-item') &&
         elem.firstElementChild?.firstElementChild?.getAttribute('data-testid') === 'model-selector-effort-group');
   }
 
@@ -387,6 +389,11 @@
     if ((CONTENT_TEST_IDS[testId] === 1 && !isCustomizationBreadcrumb(el)) || el.hasAttribute('data-ag-localization-skip') ||
         el.hasAttribute('data-markdown-root')) return true;
     if (el.hasAttribute('data-uri') && el.hasAttribute('data-quotable-inline')) return true;
+    if (el.matches('[data-testid="step-plan-item"] > span.min-w-0.truncate[title]')) return true;
+    // The collapsed floating composer trigger reuses one span for the placeholder
+    // (opacity-60) and the user's saved draft preview (opacity-90). Protect drafts.
+    if (el.tagName === 'SPAN' && el.classList.contains('opacity-90') &&
+        el.parentElement?.getAttribute('data-testid') === 'aux-pane-floating-composer-trigger') return true;
     if (testId === 'project-header' && el.hasAttribute('data-project-label')) return true;
     // The first emphasized value in the deletion notice is a project or automation name.
     if (el.tagName === 'STRONG' && !el.previousElementSibling && isProjectDeletionDescription(el.parentElement)) return true;
@@ -471,7 +478,7 @@
     var role = el.getAttribute('role');
     return el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' ||
       role === 'button' || role === 'status' || el.getAttribute('data-testid') === 'plan-command-fyi-alert' ||
-      isSideQuestionUi(el) || isTimestampUi(el) || isChangedFilesCardUi(el) || isWorkSummaryUi(el);
+      isSideQuestionUi(el) || isTimestampUi(el) || isChangedFilesCardUi(el);
   }
 
   function isChangedFilesCardUi(el) {
@@ -485,6 +492,20 @@
     return el.getAttribute('data-testid') === 'side-question-insert-to-main' ||
       el.matches('[data-testid="side-question-question"] > span.shrink-0, [data-testid="side-question-answer"] > span.opacity-70.animate-pulse');
   }
+
+  function getSideQuestionOrigin(el) {
+    var button = el?.tagName === 'BUTTON' ? el : el?.parentElement;
+    return button?.matches('button.agy-user-bubble-header[data-testid="side-question-origin"]') &&
+      button.closest('[data-testid="side-question-tab-conversation"]') ? button : null;
+  }
+
+  var SIDE_QUESTION_ORIGIN_LABELS = {
+    'Started during': '发起于',
+    'Started from': '来源于',
+    'the main conversation': '主会话',
+    'the subagent conversation': '子智能体会话',
+    'Show': '查看'
+  };
 
   function isTimestampUi(el) {
     if (!el || el.nodeType !== 1 || el.tagName !== 'SPAN' || !el.hasAttribute('data-screenshot-volatile')) return false;
@@ -574,34 +595,14 @@
     return value === action[0] + filename + action[1] ? action[2] + filename : null;
   }
 
-  var MARKETPLACE_CATEGORIES = {
-    'Science': '科研',
-    'Research': '科研与调研',
-    'research': '科研与调研',
-    'Productivity': '效率与协作',
-    'Observability': '可观测性',
-    'Design': '设计与创意',
-    'Identity and Access Management': '身份与访问管理',
-    'Cloud': '云服务',
-    'Marketing': '营销与增长',
-    'Databases': '数据库',
-    'Developer Tools': '开发者工具',
-    'Security': '安全'
-  };
-
   function translateMarketplaceCategory(text, el) {
-    if (!el || !el.closest || !el.matches) return null;
-    if (Object.prototype.hasOwnProperty.call(MARKETPLACE_CATEGORIES, text) &&
-        (el.closest('[data-testid^="marketplace-category-"]') ||
-          (el.matches('section[aria-label], section[aria-label] > div > h2') && el.closest('[data-testid="customizations-marketplace"]')))) {
-      return MARKETPLACE_CATEGORIES[text];
+    if (text === 'Science' && el && (el.closest('[data-testid="marketplace-category-option-science"], [data-testid="marketplace-category-chip"]') ||
+        (el.matches('section[aria-label], section[aria-label] > div > h2') && el.closest('[data-testid="customizations-marketplace"]')))) {
+      return '科研';
     }
-    if (el.tagName === 'BUTTON' && el.closest('[data-testid="customizations-marketplace"] section[aria-label]')) {
-      var m = text.match(/^See (more|less) in (.+)$/);
-      if (m && Object.prototype.hasOwnProperty.call(MARKETPLACE_CATEGORIES, m[2])) {
-        var catZh = MARKETPLACE_CATEGORIES[m[2]];
-        return m[1] === 'more' ? '在' + catZh + '中查看更多' : '在' + catZh + '中收起';
-      }
+    if (el?.tagName === 'BUTTON' && (text === 'See more in Science' || text === 'See less in Science') &&
+        el.closest('[data-testid="customizations-marketplace"] section[aria-label]')) {
+      return text === 'See more in Science' ? '在科研中查看更多' : '在科研中收起';
     }
     return null;
   }
@@ -701,11 +702,26 @@
   function translateUiText(text, el) {
     var testId = el && el.getAttribute('data-testid');
     if (text === 'New Side Question' && isSideQuestionDraftTitle(el)) return '新建旁路提问';
+    if (text === 'Ask anything' && el?.tagName === 'SPAN' && el.classList.contains('opacity-60') &&
+        el.parentElement?.getAttribute('data-testid') === 'aux-pane-floating-composer-trigger') return '输入任何问题';
+    if ((text === 'Comment' || text === 'Comments') &&
+        el?.closest('[data-testid="aux-pane-floating-composer-comment-badge"]')) return '条评论';
+    if (text === 'Attached' &&
+        el?.closest('[data-testid="aux-pane-floating-composer-attachment-badge"]')) return '个附件';
+    if (text.startsWith("Couldn't load plugin configuration: ") &&
+        el?.closest('[data-testid="remote-plugin-configure"]')) {
+      return '无法加载插件配置：' + text.slice("Couldn't load plugin configuration: ".length);
+    }
     if (text === 'at' && el?.matches('span.text-muted-foreground.select-none') &&
         el.closest('[data-testid="automation-schedule-editor"]')) return '于';
     var queuedStatus = translateQueuedStatus(text, testId);
     if (queuedStatus) return queuedStatus;
     if (isToolSummary(text, el)) return translateToolSummary(text);
+    if (testId === 'tool-group-elapsed' && el.closest('button[data-testid="tool-group-collapsible"]')) {
+      var time = text.match(/^(?:(\d+)h )?(?:(\d+)m )?(\d+)s$/);
+      if (time) return [time[1] && time[1] + ' 小时', time[2] && time[2] + ' 分钟', time[3] + ' 秒']
+        .filter(Boolean).join(' ');
+    }
     if (text.includes(' · ') && el?.closest('button[data-testid="progress-updates-collapsible"]')) {
       var progress = text.match(/^(Worked for .+) · (\d+) updates?$/);
       var elapsed = progress && translateSingleUnit(progress[1]);
@@ -721,6 +737,22 @@
     if ((text === 'Your plan' || text === 'Your plan:' || text.startsWith('Your plan: ')) &&
         el?.classList.contains('font-medium') && el.closest('.settings-modal-container')) {
       return text === 'Your plan' ? '当前方案' : '当前方案：' + text.slice('Your plan:'.length).trimStart();
+    }
+    if ((text.startsWith('Free users and ') || text.startsWith('You can upgrade to a higher Google AI Ultra ')) &&
+        el?.matches('.settings-modal-container span.text-sm.text-muted-foreground.whitespace-pre-wrap, ' +
+          '[data-testid="model-selector-panel"] .sticky .text-secondary-foreground > span')) {
+      if (text === 'Free users and Google AI Plus users receive the minimum base limits on Antigravity. You can upgrade to Google AI Pro or above to receive higher rate limits.') {
+        return '免费用户和 Google AI Plus 用户适用 Antigravity 的最低基础额度。升级至 Google AI Pro 或更高档位可提高请求速率上限。';
+      }
+      if (text === 'You can upgrade to a higher Google AI Ultra plan to receive the highest rate limits.') {
+        return '你可以升级至更高档位的 Google AI Ultra 方案，获得最高的请求速率上限。';
+      }
+    }
+    if (text.startsWith('Available AI credits: ') && el?.tagName === 'SPAN' &&
+        el.closest('.settings-modal-container') &&
+        el.parentElement?.parentElement?.parentElement?.querySelector(':scope > .shrink-0 a[href^="https://antigravity.google/g1-credits"]')) {
+      var balance = text.match(/^Available AI credits: ([\d.,\s]+)$/);
+      if (balance) return '可用 AI 积分：' + balance[1];
     }
     if (text.endsWith(' left') && el?.closest('[data-testid="inline-card-expiry"]')) {
       var remaining = text.match(/^(\d+)([ms]) left$/);
@@ -951,6 +983,32 @@
     return true;
   }
 
+  // The origin button lives inside the protected user bubble. Translate its
+  // fixed labels separately and preserve the original message it quotes.
+  function translateSideQuestionOriginText(node) {
+    var el = node.parentElement;
+    if (el?.tagName !== 'SPAN' || !getSideQuestionOrigin(el)) return false;
+    var label = readOriginalText(node);
+    if (Object.hasOwn(SIDE_QUESTION_ORIGIN_LABELS, label)) writeLocalizedText(node, SIDE_QUESTION_ORIGIN_LABELS[label]);
+    else restoreLocalizedText(node);
+    return true;
+  }
+
+  function translateSideQuestionOriginAttributes(el) {
+    if (getSideQuestionOrigin(el) !== el) return false;
+    for (var attr of ['title', 'aria-label']) {
+      var current = el.getAttribute(attr);
+      var edit = attributeEdits.get(el)?.[attr];
+      var label = edit?.localized === current ? edit.source : current;
+      var parts = label?.match(/^(Started during|Started from) (“[\s\S]*”|the (?:main|subagent) conversation)(?:\. Show in (main conversation|subagent conversation))?$/);
+      if (!parts) continue;
+      var origin = SIDE_QUESTION_ORIGIN_LABELS[parts[2]] || parts[2];
+      var action = parts[3] ? '。在' + SIDE_QUESTION_ORIGIN_LABELS['the ' + parts[3]] + '中查看' : '';
+      writeLocalizedAttribute(el, attr, SIDE_QUESTION_ORIGIN_LABELS[parts[1]] + origin + action);
+    }
+    return true;
+  }
+
   function restoreLocalizedAttributes(el) {
     var edits = attributeEdits.get(el);
     if (!edits) return;
@@ -981,14 +1039,14 @@
   }
 
   function restoreProtectedSubtree(el) {
-    restoreLocalizedAttributes(el);
+    if (!translateSideQuestionOriginAttributes(el)) restoreLocalizedAttributes(el);
     var walker = doc.createTreeWalker(el, root.NodeFilter.SHOW_ELEMENT | root.NodeFilter.SHOW_TEXT);
     var node = walker.nextNode();
     while (node) {
       if (node.nodeType === 3) {
-        if (!translateUserMessageClock(node)) restoreLocalizedText(node);
+        if (!translateUserMessageClock(node) && !translateSideQuestionOriginText(node)) restoreLocalizedText(node);
       }
-      else restoreLocalizedAttributes(node);
+      else if (!translateSideQuestionOriginAttributes(node)) restoreLocalizedAttributes(node);
       node = walker.nextNode();
     }
   }
@@ -1015,27 +1073,38 @@
   // 扫描轮次 ID，同一轮全量扫描中元素只处理一次
   var currentScanId = 0;
 
-  var builtinSlashSourceValues = null;
-  function isKnownBuiltinSlashSource(normalizedText) {
-    if (!builtinSlashDescriptions || !normalizedText) return false;
-    if (!builtinSlashSourceValues) {
-      builtinSlashSourceValues = Object.create(null);
-      var keys = Object.keys(builtinSlashDescriptions);
-      for (var i = 0; i < keys.length; i++) {
-        var item = builtinSlashDescriptions[keys[i]];
-        if (item && item.source) builtinSlashSourceValues[item.source] = 1;
-      }
+  function findBuiltinSlashDescriptionRoot(el) {
+    if (!el || el.nodeType !== 1 || !el.getAttribute) return null;
+    if (el.getAttribute('data-testid') === 'menu-option-description') return el;
+    var cur = el.parentElement;
+    for (var depth = 0; cur && depth < 6; depth++, cur = cur.parentElement) {
+      if (cur.getAttribute && cur.getAttribute('data-testid') === 'menu-option-description') return cur;
     }
-    return builtinSlashSourceValues[normalizedText] === 1;
+    return null;
+  }
+
+  function restoreBuiltinSlashDescription(descEl) {
+    if (!descEl) return;
+    var walker = doc.createTreeWalker(descEl, root.NodeFilter.SHOW_TEXT);
+    for (var tn = walker.nextNode(); tn; tn = walker.nextNode()) {
+      if (textEdits.get(tn)?.scope === 'builtin-slash-description') restoreLocalizedText(tn);
+    }
   }
 
   function translateBuiltinSlashDescription(el) {
-    if (!builtinSlashDescriptions || !el?.getAttribute) return { handled: false };
-    if (el.getAttribute('data-testid') !== 'menu-option-description' ||
-        el.getAttribute('dir') === 'rtl' || !el.closest?.('[data-mention-menu]')) return { handled: false };
-    var row = el.parentElement;
+    if (!builtinSlashDescriptions || !el) return false;
+    var descEl = findBuiltinSlashDescriptionRoot(el);
+    if (!descEl) return false;
+    if (descEl.getAttribute('dir') === 'rtl' || !descEl.closest?.('[data-mention-menu]')) {
+      restoreBuiltinSlashDescription(descEl);
+      return false;
+    }
+    var row = descEl.closest('[role="option"]') || descEl.parentElement;
     var labelEl = row?.querySelector('[data-testid="menu-option-label"]');
-    if (!labelEl) return { handled: false };
+    if (!labelEl) {
+      restoreBuiltinSlashDescription(descEl);
+      return false;
+    }
     var cmdName = '';
     var labelWalker = doc.createTreeWalker(labelEl, root.NodeFilter.SHOW_TEXT);
     for (var lt = labelWalker.nextNode(); lt; lt = labelWalker.nextNode()) {
@@ -1045,64 +1114,75 @@
     var entry = Object.hasOwn(builtinSlashDescriptions, cmdName) && builtinSlashDescriptions[cmdName];
 
     var menuTextNodes = [];
-    var menuWalker = doc.createTreeWalker(el, root.NodeFilter.SHOW_TEXT);
-    for (var mt = menuWalker.nextNode(); mt; mt = menuWalker.nextNode()) menuTextNodes.push(mt);
-    if (!menuTextNodes.length) return { handled: false };
+    var hasProtectedNode = false;
+    var menuWalker = doc.createTreeWalker(descEl, root.NodeFilter.SHOW_TEXT);
+    for (var mt = menuWalker.nextNode(); mt; mt = menuWalker.nextNode()) {
+      menuTextNodes.push(mt);
+      var mParent = mt.parentElement;
+      if (!mParent || mParent.tagName === 'INPUT' || mParent.tagName === 'TEXTAREA' ||
+          getElementTranslationMode(mParent) !== 2) {
+        hasProtectedNode = true;
+      }
+    }
+    if (!menuTextNodes.length) return false;
+
+    // 任一后代文本处于受保护边界（如 <code>、<pre>、contenteditable 等）时，整行不应用分段译文并还原历史译文
+    if (hasProtectedNode) {
+      restoreBuiltinSlashDescription(descEl);
+      return true;
+    }
 
     var menuSource = '';
-    var hadEdit = false;
     for (var i = 0; i < menuTextNodes.length; i++) {
       var mtn = menuTextNodes[i];
       var mEdit = textEdits.get(mtn);
-      if (mEdit?.scope === 'builtin-slash-description') hadEdit = true;
       menuSource += mEdit && mEdit.localized === mtn.nodeValue ? mEdit.source : mtn.nodeValue;
     }
     var normalized = normalizeWhitespace(menuSource);
-    var isKnownBuiltinText = isKnownBuiltinSlashSource(normalized);
     var verified = !!entry && normalized === entry.source &&
-      !el.dispatchEvent(new root.CustomEvent('agy-localization-check-builtin-slash-description', {
+      !descEl.dispatchEvent(new root.CustomEvent('agy-localization-check-builtin-slash-description', {
         detail: { name: cmdName, source: normalized },
         cancelable: true
       }));
 
     if (!verified) {
-      if (hadEdit) {
-        for (var j = 0; j < menuTextNodes.length; j++) restoreLocalizedText(menuTextNodes[j]);
-      }
-      // 若原文恰好命中系统内置命令描述但 Fiber 校验不通过（如同名自定义技能/第三方插件），强制保留原文
-      return { handled: isKnownBuiltinText };
+      restoreBuiltinSlashDescription(descEl);
+      return true;
     }
 
     var menuTrans = entry.translation;
     if (menuTextNodes.length > 1) {
       if (menuTextNodes.length === 3) {
-        var midSrc = (textEdits.get(menuTextNodes[1])?.localized === menuTextNodes[1].nodeValue
-          ? textEdits.get(menuTextNodes[1]).source
+        var midEdit = textEdits.get(menuTextNodes[1]);
+        var midSrc = (midEdit && midEdit.localized === menuTextNodes[1].nodeValue
+          ? midEdit.source
           : menuTextNodes[1].nodeValue) || '';
-        var midTrim = midSrc.trim();
-        var hitIdx = midTrim ? menuTrans.indexOf(midTrim) : -1;
+        var hitIdx = midSrc && midSrc.trim() ? menuTrans.indexOf(midSrc) : -1;
         if (hitIdx !== -1) {
           writeLocalizedText(menuTextNodes[0], menuTrans.slice(0, hitIdx), 'builtin-slash-description');
-          writeLocalizedText(menuTextNodes[1], midTrim, 'builtin-slash-description');
-          writeLocalizedText(menuTextNodes[2], menuTrans.slice(hitIdx + midTrim.length), 'builtin-slash-description');
-          return { handled: true };
+          writeLocalizedText(menuTextNodes[1], midSrc, 'builtin-slash-description');
+          writeLocalizedText(menuTextNodes[2], menuTrans.slice(hitIdx + midSrc.length), 'builtin-slash-description');
+          return true;
         }
       }
       // 无法将搜索高亮片段可靠映射到译文时，保留带高亮的原文，清空搜索恢复单文本节点后再译回中文
-      if (hadEdit) {
-        for (var h = 0; h < menuTextNodes.length; h++) restoreLocalizedText(menuTextNodes[h]);
-      }
-      return { handled: true };
+      restoreBuiltinSlashDescription(descEl);
+      return true;
     }
     writeLocalizedText(menuTextNodes[0], menuTrans, 'builtin-slash-description');
-    return { handled: true };
+    return true;
   }
 
   function translateTextNode(node, parentMode) {
     if (!node || node.nodeType !== 3) return;
+    if (translateSideQuestionOriginText(node)) return;
     var parent = node.parentElement || node.parentNode;
     var mode = parentMode === undefined ? getElementTranslationMode(parent) : parentMode;
     if (parent && (mode !== 2 || parent.tagName === 'INPUT' || parent.tagName === 'TEXTAREA')) {
+      if (builtinSlashDescriptions) {
+        var protectedSlash = findBuiltinSlashDescriptionRoot(parent);
+        if (protectedSlash) restoreBuiltinSlashDescription(protectedSlash);
+      }
       if (mode !== 0 || (!translateUserMessageClock(node) && !translateOfficialPluginDescription(parent))) restoreLocalizedText(node);
       return;
     }
@@ -1116,15 +1196,11 @@
       restoreLocalizedText(node);
       return;
     }
-    if (edit?.scope === 'builtin-slash-description') {
-      var bsRes = translateBuiltinSlashDescription(parent);
-      if (!bsRes.handled) restoreLocalizedText(node);
+    var slashDesc = builtinSlashDescriptions ? findBuiltinSlashDescriptionRoot(parent) : null;
+    if (edit?.scope === 'builtin-slash-description' || slashDesc) {
+      if (slashDesc) translateBuiltinSlashDescription(slashDesc);
+      else restoreLocalizedText(node);
       return;
-    }
-    if (parent && parent.getAttribute && parent.getAttribute('data-testid') === 'menu-option-description' &&
-        parent.getAttribute('dir') !== 'rtl' && parent.closest?.('[data-mention-menu]')) {
-      var slashCheck = translateBuiltinSlashDescription(parent);
-      if (slashCheck.handled) return;
     }
 
     // React renders the fixed prefix, app name and diagnostic as separate
@@ -1222,16 +1298,19 @@
     var translationMode = getElementTranslationMode(el);
     if (translationMode === 0) {
       if (translateOfficialPluginDescription(el)) return;
+      var protectedSlashDesc = findBuiltinSlashDescriptionRoot(el);
+      if (protectedSlashDesc) restoreBuiltinSlashDescription(protectedSlashDesc);
       var modelSelectorLabel = getLocalizedModelSelectorLabel(el);
       if (work) {
-        if (!modelSelectorLabel) restoreLocalizedAttributes(el);
+        if (!modelSelectorLabel && !translateSideQuestionOriginAttributes(el)) restoreLocalizedAttributes(el);
         appendChildren(el, work);
       } else restoreProtectedSubtree(el);
       if (modelSelectorLabel) writeLocalizedAttribute(el, 'aria-label', modelSelectorLabel);
       return;
     }
     var translateOwnContent = translationMode === 2;
-    if (!translateOwnContent || attributeEdits.get(el)?.title?.officialPluginDescription) restoreLocalizedAttributes(el);
+    var sideQuestionOrigin = translateSideQuestionOriginAttributes(el);
+    if ((!translateOwnContent && !sideQuestionOrigin) || attributeEdits.get(el)?.title?.officialPluginDescription) restoreLocalizedAttributes(el);
 
     // 同一轮扫描中，已处理的元素跳过
     if (scanId) el._agyScanId = scanId;
@@ -1279,6 +1358,26 @@
             var siteInfoLabel = translateSingleUnit('View site information');
             var status = val.slice(0, -'. View site information'.length);
             if (siteInfoLabel) trans = (Object.hasOwn(exactDict, status) ? exactDict[status] : status) + '。' + siteInfoLabel;
+          } else if (attr === 'aria-label' && val.endsWith(' \u2014 restore split view') &&
+              el.getAttribute('data-testid') === 'aux-pane-floating-composer-status') {
+            var statusLabel = val.slice(0, -' \u2014 restore split view'.length);
+            var localizedStatus = translateSingleUnit(statusLabel) || statusLabel;
+            trans = localizedStatus + ' — 恢复分栏视图';
+          } else if (attr === 'aria-label' && val.includes(', ') &&
+              (el.getAttribute('data-testid') === 'plugins-create-with-prompt' ||
+               el.getAttribute('data-testid') === 'marketplace-invitation')) {
+            var reasonSep = val.lastIndexOf(', ');
+            var actionText = translateSingleUnit(val.slice(0, reasonSep));
+            var reasonText = translateSingleUnit(val.slice(reasonSep + 2));
+            if (actionText && reasonText) trans = actionText + '，' + reasonText;
+          } else if (attr === 'aria-label' &&
+              ((val.startsWith('Retry loading ') && val.endsWith(' configuration')) || val.startsWith('Configure ')) &&
+              el.closest('[data-testid="remote-plugin-configure"]')) {
+            if (val.startsWith('Retry loading ')) {
+              trans = '重试加载 ' + val.slice('Retry loading '.length, -' configuration'.length) + ' 配置';
+            } else {
+              trans = '配置 ' + val.slice('Configure '.length);
+            }
           } else if (attr === 'aria-label' && val.startsWith('Reset ') && val.endsWith(' to default') &&
               el.closest('[data-testid^="shortcut-row-"]')) {
             var shortcutAction = translateSingleUnit(val.slice('Reset '.length, -' to default'.length));
@@ -1302,11 +1401,10 @@
     }
 
     // 遍历子节点
-    if (translateOwnContent && translateBuiltinSlashDescription(el).handled) return;
-    // 斜杠/技能菜单项描述在搜索过滤时会被 <LJ> 高亮组件拆成多个 <span> 子节点；
-    // 保持 React 子节点原位，仅通过 textEdits 改写文本叶子节点，确保搜索与选中功能完全不受影响。
+    if (translateOwnContent && translateBuiltinSlashDescription(el)) return;
+    // Plus 增强：悬停卡片描述 (hover-card-description) 及未启用 Fiber 校验时的菜单描述在搜索高亮时保留 <span> 结构整句处理，避免拆成半英半中
     if (translateOwnContent &&
-        ((el.getAttribute('data-testid') === 'menu-option-description' &&
+        ((!builtinSlashDescriptions && el.getAttribute('data-testid') === 'menu-option-description' &&
           el.getAttribute('dir') !== 'rtl' && el.closest && el.closest('[data-mention-menu]')) ||
          (el.getAttribute('data-testid') === 'hover-card-description' &&
           el.closest && el.closest('[data-mention-menu]')))) {
@@ -1314,10 +1412,7 @@
         var menuTextNodes = [];
         var menuWalker = doc.createTreeWalker(el, root.NodeFilter.SHOW_TEXT);
         var mt = menuWalker.nextNode();
-        while (mt) {
-          menuTextNodes.push(mt);
-          mt = menuWalker.nextNode();
-        }
+        while (mt) { menuTextNodes.push(mt); mt = menuWalker.nextNode(); }
         if (menuTextNodes.length >= 1) {
           var menuSource = '';
           var hadMenuEdit = false;
@@ -1330,7 +1425,6 @@
           var menuNormalized = normalizeWhitespace(menuSource);
           var menuTrans = menuNormalized ? translateUiText(menuNormalized, el) : null;
           if (menuTrans && menuTrans !== menuNormalized) {
-            // 若命中 3 段高亮结构且译文原样保留了高亮关键词（如 Boost / Swarm / MCP），则将高亮精准落回中间高亮节点
             var placedWithHighlight = false;
             if (menuTextNodes.length === 3) {
               var hlText = (textEdits.get(menuTextNodes[1])?.localized === menuTextNodes[1].nodeValue
@@ -1355,20 +1449,19 @@
             }
             return;
           } else if (hadMenuEdit) {
-            for (var mtk = 0; mtk < menuTextNodes.length; mtk++) {
-              restoreLocalizedText(menuTextNodes[mtk]);
-            }
+            for (var mtk = 0; mtk < menuTextNodes.length; mtk++) restoreLocalizedText(menuTextNodes[mtk]);
           }
-          // 若整句未命中静态词典，避免局部高亮碎片被拆译成半英半中，交由实时翻译或保持整句原文
           return;
         }
       }
     }
-
     // 联合文本自愈：如果元素直接子节点全为纯文本节点且数量 > 1（常见于 React 碎片化模板拆分，如 "All ", e, "s run as Flash."）
     if (translateOwnContent && translateSiteDataFragments(el)) return;
     var first = el.firstChild;
-    if (translateOwnContent && first && first.nextSibling) {
+    var parentTestId = el.parentElement?.getAttribute('data-testid');
+    var skipTextCombine = parentTestId === 'aux-pane-floating-composer-comment-badge' ||
+      parentTestId === 'aux-pane-floating-composer-attachment-badge';
+    if (translateOwnContent && !skipTextCombine && first && first.nextSibling) {
       var allText = true;
       var cur = first;
       while (cur) {
@@ -1435,7 +1528,7 @@
         subtree: true,
         characterData: true,
         attributes: true,
-        attributeFilter: TRANSLATABLE_ATTRS.concat('data-model-label', 'dir')
+        attributeFilter: TRANSLATABLE_ATTRS.concat('data-model-label', 'dir', 'aria-selected')
       });
       observing = true;
     }
@@ -1593,18 +1686,27 @@
   function enqueueMenuOptionDependents(target) {
     var el = target && target.nodeType === 3 ? target.parentElement : target;
     if (!el || !el.closest) return;
-    var menuDesc = el.closest('[data-testid="menu-option-description"], [data-testid="hover-card-description"]');
+    var menuDesc = findBuiltinSlashDescriptionRoot(el) || el.closest('[data-testid="menu-option-description"], [data-testid="hover-card-description"]');
     if (menuDesc) {
       menuDesc._agyScanId = 0;
       enqueueNode(menuDesc);
       return;
     }
     var optRow = el.closest('[data-mention-menu] [role="option"]');
-    if (optRow && (el.closest('[data-testid="menu-option-label"]') || el === optRow)) {
+    if (optRow) {
       var siblingDesc = optRow.querySelector('[data-testid="menu-option-description"]');
       if (siblingDesc) {
         siblingDesc._agyScanId = 0;
         enqueueNode(siblingDesc);
+      }
+      return;
+    }
+    var mentionMenu = el.closest('[data-mention-menu]');
+    if (mentionMenu) {
+      var menuDescs = mentionMenu.querySelectorAll('[data-testid="menu-option-description"]');
+      for (var mi = 0; mi < menuDescs.length; mi++) {
+        menuDescs[mi]._agyScanId = 0;
+        enqueueNode(menuDescs[mi]);
       }
     }
   }
@@ -1647,6 +1749,7 @@
         if (edits) delete edits[mutation.attributeName];
         mutation.target[MARK_ATTR + '_' + mutation.attributeName] = undefined;
         enqueueNode(mutation.target);
+        enqueueMenuOptionDependents(mutation.target);
       }
     }
     if (pendingNodes.length > 0) scheduleFlush();

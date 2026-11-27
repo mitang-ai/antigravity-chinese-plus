@@ -93,6 +93,77 @@ test('2.35 sentence case setting titles and split plan labels localize without c
   assert.equal(document.querySelector('[data-testid="user-input-step"]').textContent, 'Prevent sleep');
 });
 
+test('2.35.2 localizes the shared free-tier quota notice only in its UI', async t => {
+  const source = 'Free users and Google AI Plus users receive the minimum base limits on Antigravity. You can upgrade to Google AI Pro or above to receive higher rate limits.';
+  const translated = '免费用户和 Google AI Plus 用户适用 Antigravity 的最低基础额度。升级至 Google AI Pro 或更高档位可提高请求速率上限。';
+  const changed = source.replace('Google AI Plus', 'another plan');
+  const { document } = await fixture(t, `
+    <div class="settings-modal-container">
+      <div id="plan" class="font-medium">Your plan: Antigravity Starter Quota</div>
+      <span id="account-notice" class="text-sm text-muted-foreground whitespace-pre-wrap">${source}</span>
+    </div>
+    <div data-testid="model-selector-panel">
+      <div class="sticky bottom-0"><div class="text-secondary-foreground">
+        <span id="menu-notice">${source}</span>
+        <span id="changed">${changed}</span>
+        <a href="https://example.com/plans">View plans</a>
+      </div></div>
+    </div>
+    <div id="ordinary"><span>${source}</span></div>
+    <div data-testid="user-input-step">${source}</div>`);
+  const text = selector => document.querySelector(selector).textContent;
+  assert.equal(text('#account-notice'), translated);
+  assert.equal(text('#menu-notice'), translated);
+  assert.equal(text('#plan'), '当前方案：Antigravity Starter Quota');
+  assert.equal(text('#changed'), changed);
+  assert.equal(text('#ordinary'), source);
+  assert.equal(text('[data-testid="user-input-step"]'), source);
+  assert.equal(document.querySelector('[data-testid="model-selector-panel"] a').getAttribute('href'), 'https://example.com/plans');
+});
+
+test('2.35.2 localizes Ultra settings without changing the plan, credits balance or account controls', async t => {
+  const notice = 'You can upgrade to a higher Google AI Ultra plan to receive the highest rate limits.';
+  const description = 'Permanently delete your remote conversations, projects, scheduled tasks, connected plugins and settings. Data in the desktop app and your Google account are not affected.';
+  const { document, window } = await fixture(t, `
+    <div class="settings-modal-container">
+      <span class="font-medium">Your plan: Google AI Ultra</span>
+      <span id="account-notice" class="text-sm text-muted-foreground whitespace-pre-wrap">${notice}</span>
+      <div><div><div><span id="balance">Available AI credits: 1,250.50</span></div></div>
+        <div class="shrink-0"><a href="https://antigravity.google/g1-credits?example">Get More AI Credits</a></div>
+      </div>
+      <div data-testid="orchestrator-mode">
+        <span>Model selection</span>
+        <span>Default uses server-managed routing and Orchestrator quota. Custom pins specific models for orchestration and execution.</span>
+        <div role="radiogroup" aria-label="Orchestrator model selection">
+          <button role="radio" aria-checked="true" data-value="default">Default</button>
+          <button role="radio" aria-checked="false" data-value="custom">Custom</button>
+        </div>
+      </div>
+      <div id="remote-data">
+        <span>Delete all Remote Agents data</span><span>${description}</span>
+        <button data-testid="delete-all-user-data-button" disabled>Delete All Data</button>
+      </div>
+    </div>
+    <div id="outside">${notice}</div>`);
+  const get = id => document.getElementById(id);
+  assert.equal(document.querySelector('.font-medium').textContent, '当前方案：Google AI Ultra');
+  assert.equal(get('account-notice').textContent, '你可以升级至更高档位的 Google AI Ultra 方案，获得最高的请求速率上限。');
+  assert.equal(get('outside').textContent, notice);
+  assert.equal(get('balance').textContent, '可用 AI 积分：1,250.50');
+  assert.equal(document.querySelector('a').getAttribute('href'), 'https://antigravity.google/g1-credits?example');
+  assert.equal(document.querySelector('[role="radiogroup"]').getAttribute('aria-label'), '编排器模型选择');
+  assert.equal(document.querySelector('[data-value="default"]').getAttribute('aria-checked'), 'true');
+  assert.equal(document.querySelector('[data-value="custom"]').getAttribute('aria-checked'), 'false');
+  assert.equal(document.querySelector('[data-testid="orchestrator-mode"] > span').textContent, '模型选择');
+  assert.match(document.querySelector('[data-testid="orchestrator-mode"] > span:nth-child(2)').textContent, /^默认模式由服务器分配模型/);
+  assert.equal(get('remote-data').firstElementChild.textContent, '删除所有远程智能体数据');
+  assert.match(get('remote-data').children[1].textContent, /^永久删除你的远程会话/);
+  assert.equal(get('remote-data').lastElementChild.disabled, true);
+  get('balance').firstChild.data = 'Available AI credits: 950';
+  await settle(window);
+  assert.equal(get('balance').textContent, '可用 AI 积分：950');
+});
+
 test('2.35 queued status and locked permission labels translate without changing task names', async t => {
   const { document, window } = await fixture(t, `
     <button data-testid="permissions-selector-trigger" aria-disabled="true"
@@ -195,7 +266,7 @@ test('2.34 settings permission rows and portaled options distinguish presets fro
   const frames = [];
   const turn = () => new Promise(resolve => setImmediate(resolve));
   async function drainTranslation(window) {
-    // 等待 MutationObserver 完成调度后再逐帧排空翻译队列
+    // Let the mutation observer schedule work before stepping through the frames.
     await turn();
     for (let i = 0; frames.length && i < 100; i++) {
       for (const callback of frames.splice(0)) callback(window.performance.now());
@@ -540,7 +611,7 @@ test('2.35 browser toolbar and tab menu localize fixed text and preserve securit
     </div>
     <p data-testid="user-input-step">Add screenshot to conversation</p>`);
   const get = id => document.querySelector('[data-testid="' + id + '"]');
-  assert.equal(get('webview-url-bar-inspect-button').title, '检查元素并添加批注');
+  assert.equal(get('webview-url-bar-inspect-button').title, '检查元素并添加评论');
   assert.equal(get('webview-url-bar-screenshot').getAttribute('aria-label'), '将截图添加到会话');
   assert.equal(get('url-security-indicator').title, '查看网站信息');
   assert.equal(get('url-security-indicator').getAttribute('aria-label'), 'example.test。查看网站信息');
@@ -569,6 +640,13 @@ test('2.35 side question drafts translate without rewriting submitted titles or 
         <span>High</span>
         <div class="bg-secondary opacity-70 flex items-center gap-1 rounded-full px-1.5 text-sm"><span id="model-tag">New</span></div>
       </span></button>
+      <button data-testid="model-selector-orchestrator" data-model-label="Orchestrator">
+        <span>Orchestrator</span>
+        <span data-testid="model-selector-orchestrator-model">Gemini 4 Neon Extra High</span>
+        <div class="bg-secondary opacity-70 flex items-center gap-1 rounded-full px-1.5 text-sm"><span id="orchestrator-badge">New</span></div>
+      </button>
+      <button data-testid="orchestrator-picker-default">Default (Gemini Pro)</button>
+      <button data-testid="orchestrator-picker-row" data-model-label="Settings">Settings</button>
     </div>
     <button id="action">New</button>`);
   const get = id => document.getElementById(id);
@@ -580,10 +658,65 @@ test('2.35 side question drafts translate without rewriting submitted titles or 
   assert.equal(get('name').textContent, 'Settings');
   assert.equal(document.querySelector('[data-testid="side-question-tab-empty"] span').textContent, '发起旁路提问，不打断主会话');
   assert.equal(get('model-tag').textContent, 'New');
+  assert.equal(get('orchestrator-badge').textContent, 'New');
+  assert.equal(document.querySelector('[data-testid="model-selector-orchestrator-model"]').textContent, 'Gemini 4 Neon Extra High');
+  assert.equal(document.querySelector('[data-testid="orchestrator-picker-default"]').textContent, '默认（Gemini Pro）');
+  assert.equal(document.querySelector('[data-testid="orchestrator-picker-row"]').textContent, 'Settings');
   assert.equal(get('action').textContent, '新建');
   get('model-tag').textContent = 'New';
   await settle(window);
   assert.equal(get('model-tag').textContent, 'New');
+});
+
+test('2.35.2 active side question chrome translates with original quotes and controls', async t => {
+  const pending = 'Cannot continue as a new conversation while side question is running';
+  const { document, window } = await fixture(t, `
+    <div role="tooltip" id="promote-tip">${pending}</div>
+    <div role="tooltip" id="stop-tip">Stop Side Question</div>
+    <button data-testid="side-question-tab-promote" disabled aria-label="Continue as a new conversation"></button>
+    <button data-testid="side-question-tab-stop" aria-label="Stop side question"></button>
+    <div data-testid="side-question-tab-conversation">
+      <div data-testid="user-input-step">
+        <button class="agy-user-bubble-header" data-testid="side-question-origin" title="Started during “Settings”"
+          aria-label="Started during “Settings”. Show in main conversation">
+          <span class="shrink-0">Started during</span>
+          <span class="min-w-0 flex-1 truncate text-secondary-foreground">“Settings”</span>
+          <span class="shrink-0 font-medium text-secondary-foreground">Show</span>
+        </button>
+        <span id="user-message">Show</span>
+      </div>
+      <button data-testid="tool-group-collapsible">
+        <span>Running review</span><span data-testid="tool-group-elapsed" data-screenshot-volatile>4m 47s</span>
+      </button>
+      <li data-testid="step-plan-item" data-status="in_progress">
+        <span class="min-w-0 truncate text-base" title="Settings">Settings</span><span>In progress</span>
+      </li>
+    </div>`);
+  const button = document.querySelector('[data-testid="side-question-origin"]');
+  assert.equal(document.getElementById('promote-tip').textContent, '旁路提问运行期间无法在新会话中继续');
+  assert.equal(document.getElementById('stop-tip').textContent, '停止旁路提问');
+  assert.equal(document.querySelector('[data-testid="side-question-tab-promote"]').disabled, true);
+  assert.equal(document.querySelector('[data-testid="side-question-tab-promote"]').getAttribute('aria-label'), '在新会话中继续');
+  assert.equal(document.querySelector('[data-testid="side-question-tab-stop"]').getAttribute('aria-label'), '停止旁路提问');
+  assert.deepEqual([...button.children].map(el => el.textContent), ['发起于', '“Settings”', '查看']);
+  assert.equal(button.title, '发起于“Settings”');
+  assert.equal(button.getAttribute('aria-label'), '发起于“Settings”。在主会话中查看');
+  assert.equal(document.getElementById('user-message').textContent, 'Show');
+  assert.equal(document.querySelector('[data-testid="tool-group-collapsible"] > span').textContent, 'Running review');
+  assert.equal(document.querySelector('[data-testid="tool-group-elapsed"]').textContent, '4 分钟 47 秒');
+  const step = document.querySelector('[data-testid="step-plan-item"]');
+  assert.equal(step.dataset.status, 'in_progress');
+  assert.equal(step.firstElementChild.textContent, 'Settings');
+  assert.equal(step.firstElementChild.title, 'Settings');
+  assert.equal(step.lastElementChild.textContent, '进行中');
+  button.title = 'Started from the subagent conversation';
+  button.setAttribute('aria-label', 'Started from the subagent conversation. Show in subagent conversation');
+  button.children[0].firstChild.data = 'Started from';
+  button.children[1].firstChild.data = 'the subagent conversation';
+  await settle(window);
+  assert.deepEqual([...button.children].map(el => el.textContent), ['来源于', '子智能体会话', '查看']);
+  assert.equal(button.title, '来源于子智能体会话');
+  assert.equal(button.getAttribute('aria-label'), '来源于子智能体会话。在子智能体会话中查看');
 });
 
 async function fixture(t, html, options = {}) {
@@ -605,6 +738,162 @@ async function fixture(t, html, options = {}) {
   await (options.waitForInitialTranslation || settle)(window);
   return { window, document: window.document, translate: window.__AGY_TRANSLATE_EL__ };
 }
+
+test('builtin slash command descriptions follow verified SYSTEM provenance, protect dir=rtl paths and custom skills, and retranslate across search highlight splits', async t => {
+  function attachOptionFiber(descEl, itemObj) {
+    const root = { tag: 3 };
+    root.stateNode = { current: root };
+    const rowFiber = { memoizedProps: { item: itemObj }, return: root };
+    descEl.__reactFiber$fixture = { stateNode: descEl, return: rowFiber };
+    return rowFiber;
+  }
+  const makeSystemSlash = (name, text) => ({
+    item: { scopeItem: { case: 'slashCommand', value: { info: { name, type: 1 } } } },
+    getRenderInfo: () => ({ description: { text } })
+  });
+  const makeRecipeSkill = (name, text) => ({
+    item: { scopeItem: { case: 'recipe', value: { title: name, description: text } } },
+    getRenderInfo: () => ({ description: { text } })
+  });
+  const makePluginSkill = (name, text) => ({
+    item: { scopeItem: { case: 'slashCommand', value: { info: { name, type: 2, plugin: { name: 'third-party' } } } } },
+    getRenderInfo: () => ({ description: { text } })
+  });
+
+  const planSrc = 'Plan carefully before executing a task.';
+  const boostSrc = 'Invoke the Boost multi-agent orchestrator for complex tasks.';
+  let planRowFiber;
+  let boostRowFiber;
+  const { document, window, translate } = await fixture(t, `
+    <div role="listbox" data-mention-menu="">
+      <div role="option" id="opt-plan">
+        <span data-testid="menu-option-label">plan</span>
+        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+      <div role="option" id="opt-boost">
+        <span data-testid="menu-option-label">boost</span>
+        <span data-testid="menu-option-description" dir="auto">${boostSrc}</span>
+      </div>
+      <div role="option" id="opt-boost-code">
+        <span data-testid="menu-option-label">boost</span>
+        <span data-testid="menu-option-description" dir="auto"><code>Invoke the </code><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span></span>
+      </div>
+      <div role="option" id="opt-custom">
+        <span data-testid="menu-option-label">my-skill</span>
+        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+      <div role="option" id="opt-custom-dict-word">
+        <span data-testid="menu-option-label">my-settings</span>
+        <span data-testid="menu-option-description" dir="auto">Settings</span>
+      </div>
+      <div role="option" id="opt-plugin">
+        <span data-testid="menu-option-label">plan</span>
+        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+      <div role="option" id="opt-rtl-path">
+        <span data-testid="menu-option-label">Before</span>
+        <span data-testid="menu-option-description" dir="rtl">Before</span>
+      </div>
+    </div>`, {
+    builtinSlash: true,
+    beforeStart(doc) {
+      planRowFiber = attachOptionFiber(doc.querySelector('#opt-plan [data-testid="menu-option-description"]'), makeSystemSlash('plan', planSrc));
+      boostRowFiber = attachOptionFiber(doc.querySelector('#opt-boost [data-testid="menu-option-description"]'), makeSystemSlash('boost', boostSrc));
+      attachOptionFiber(doc.querySelector('#opt-boost-code [data-testid="menu-option-description"]'), makeSystemSlash('boost', boostSrc));
+      attachOptionFiber(doc.querySelector('#opt-custom [data-testid="menu-option-description"]'), makeRecipeSkill('my-skill', planSrc));
+      attachOptionFiber(doc.querySelector('#opt-custom-dict-word [data-testid="menu-option-description"]'), makeRecipeSkill('my-settings', 'Settings'));
+      attachOptionFiber(doc.querySelector('#opt-plugin [data-testid="menu-option-description"]'), makePluginSkill('plan', planSrc));
+      attachOptionFiber(doc.querySelector('#opt-rtl-path [data-testid="menu-option-description"]'), makeRecipeSkill('Before', 'Before'));
+    }
+  });
+
+  const planDesc = document.querySelector('#opt-plan [data-testid="menu-option-description"]');
+  const boostDesc = document.querySelector('#opt-boost [data-testid="menu-option-description"]');
+  const boostCodeDesc = document.querySelector('#opt-boost-code [data-testid="menu-option-description"]');
+  const customDesc = document.querySelector('#opt-custom [data-testid="menu-option-description"]');
+  const pluginDesc = document.querySelector('#opt-plugin [data-testid="menu-option-description"]');
+  const rtlDesc = document.querySelector('#opt-rtl-path [data-testid="menu-option-description"]');
+
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(boostCodeDesc.querySelector('code').textContent, 'Invoke the ');
+  assert.equal(boostCodeDesc.textContent, boostSrc);
+  assert.equal(customDesc.textContent, planSrc);
+  assert.equal(document.querySelector('#opt-custom-dict-word [data-testid="menu-option-description"]').textContent, 'Settings');
+  assert.equal(pluginDesc.textContent, planSrc);
+  assert.equal(rtlDesc.textContent, 'Before');
+
+  // 1. 输入搜索词：无法映射英文高亮词（如 task）时保留带高亮原文不清空高亮文本；可精确保留英文关键词（如 Boost）时重排译文
+  planDesc.innerHTML = '<span>Plan carefully before executing a </span><span class="hl">task</span><span>.</span>';
+  boostDesc.innerHTML = '<span>Invoke the </span><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span>';
+  await settle(window);
+  assert.equal(planDesc.textContent, planSrc);
+  assert.equal(planDesc.querySelector('span.hl').textContent, 'task');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(boostDesc.querySelector('span.hl').textContent, 'Boost');
+
+  // 2. 三个高亮片段已译为中文后，仅更新前缀节点 title 属性，整行仍保持一致中文（不出现前缀回退英文的半句译文）
+  boostDesc.firstElementChild.title = 'prefix-updated';
+  await settle(window);
+  assert.equal(boostDesc.firstElementChild.textContent, '调用 ');
+  assert.equal(boostDesc.querySelector('span.hl').textContent, 'Boost');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+
+  // 3. DOM 与标签均不变，仅将来源从内置切换为用户条目时，局部文本重扫或属性变更均按整行还原为英文，切回内置后重新应用中文
+  boostRowFiber.memoizedProps.item = makeRecipeSkill('boost', boostSrc);
+  translate(boostDesc.querySelector('span.hl').firstChild);
+  assert.equal(boostDesc.firstElementChild.textContent, 'Invoke the ');
+  assert.equal(boostDesc.textContent, boostSrc);
+  boostRowFiber.memoizedProps.item = makeSystemSlash('boost', boostSrc);
+  boostDesc.firstElementChild.title = 'prefix-restored';
+  await settle(window);
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+
+  // 4. 已翻译的三段说明若动态插入 <code> 保护边界，整行还原且绝不改动 <code> 内文本
+  const codePrefix = document.createElement('code');
+  codePrefix.textContent = 'Invoke the ';
+  boostDesc.replaceChild(codePrefix, boostDesc.firstElementChild);
+  await settle(window);
+  assert.equal(boostDesc.querySelector('code').textContent, 'Invoke the ');
+  assert.equal(boostDesc.textContent, boostSrc);
+
+  // 5. 清空搜索词恢复单文本节点，译文继续保持正常
+  planDesc.textContent = planSrc;
+  boostDesc.textContent = boostSrc;
+  await settle(window);
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+
+  // 6. 单独切换 dir="rtl"（保留原说明节点及内容不变）时，立即恢复原文；切回 dir="auto" 后重新翻译
+  planDesc.setAttribute('dir', 'rtl');
+  await settle(window);
+  assert.equal(planDesc.textContent, planSrc);
+  planDesc.setAttribute('dir', 'auto');
+  await settle(window);
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+
+  // 7. DOM 与标题均不变，仅切换来源为同名的用户条目（如选中态变更、菜单增删兄弟项或重扫），整行立即还原回原文
+  const planDescTextNode = planDesc.firstChild;
+  planRowFiber.memoizedProps.item = makeRecipeSkill('plan', planSrc);
+  document.getElementById('opt-plan').setAttribute('aria-selected', 'true');
+  await settle(window);
+  assert.equal(planDesc.firstChild, planDescTextNode);
+  assert.equal(planDesc.textContent, planSrc);
+
+  // 切回内置来源再以列表兄弟变更触发重验，恢复译文；再复用为自定义技能（同时改标签），立即还原原文
+  planRowFiber.memoizedProps.item = makeSystemSlash('plan', planSrc);
+  const extraOpt = document.createElement('div');
+  extraOpt.setAttribute('role', 'option');
+  document.querySelector('[data-mention-menu]').appendChild(extraOpt);
+  await settle(window);
+  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
+  document.querySelector('#opt-plan [data-testid="menu-option-label"]').textContent = 'my-skill';
+  planRowFiber.memoizedProps.item = makeRecipeSkill('my-skill', planSrc);
+  await settle(window);
+  assert.equal(planDesc.firstChild, planDescTextNode);
+  assert.equal(planDesc.textContent, planSrc);
+  assert.equal(rtlDesc.textContent, 'Before');
+});
 
 test('complete shortcut rows translate descriptions and toggle labels while authored copies stay intact', async t => {
   const { document } = await fixture(t, `
@@ -712,19 +1001,23 @@ test('2.35.2 work and tool summaries preserve the collapse state and quoted text
   assert.equal(document.querySelector('.prose button').textContent, 'Worked for 1m');
   assert.equal(document.querySelector('.prose > span').textContent, 'Explored file, ran commands, edited files');
   tools.setAttribute('aria-expanded', 'true');
-  tools.setAttribute('aria-label', 'Explored example');
+  tools.setAttribute('aria-label', 'Explored example.md');
+  summary.textContent = summary.title = 'Explored example.md';
   await settle(window);
   assert.equal(tools.getAttribute('aria-expanded'), 'true');
-  assert.equal(tools.getAttribute('aria-label'), 'Explored example');
+  assert.equal(summary.textContent, 'Explored example.md');
+  assert.equal(summary.title, summary.textContent);
+  assert.equal(tools.getAttribute('aria-label'), summary.textContent);
 });
 
-test('2.35.2 site information and downloads keep domain, certificate and file values intact', async t => {
+test('2.35.2 browser popovers translate status, preserving host, certificate and file data', async t => {
   const { window, document, translate } = await fixture(t, `
     <button data-testid="url-security-indicator" data-security-level="secure"
-      aria-label="Connection is secure. View site information" title="View site information"></button>
+      aria-label="Connection is secure. View site information"> </button>
     <div data-testid="url-security-popover">
-      <div data-testid="url-security-summary">Connection is secure</div>
-      <div data-testid="url-security-host">Settings</div>
+      <span data-testid="url-security-host">Settings</span>
+      <span data-testid="url-security-summary">Connection is secure</span>
+      <span>Your information (for example, passwords or credit card numbers) is private when it is sent to this site.</span>
       <span id="certificate-label">Certificate is valid</span>
       <dl data-testid="url-security-certificate"><dt>Issued to</dt><dd>Settings</dd><dt>Issued by</dt><dd>Open</dd>
       <dt>Valid until</dt><dd>Unknown</dd><dt>Protocol</dt><dd>TLS 1.3</dd></dl>
@@ -787,30 +1080,6 @@ test('2.35.2 user-message clock localizes without changing the same text in the 
   message.append(clock);
   await settle(window);
   assert.equal(clock.textContent, 'about 1h ago');
-});
-
-test('2.35.2 Google Drive link error alerts and /btw validation localize without touching user content', async t => {
-  const { document } = await fixture(t, `
-    <div role="alert">
-      <strong>Couldn't load Google Drive link title</strong>
-      <span>Timed out fetching the Google Drive file's title. The link was kept as-is.</span>
-      <span>Enter a side question after /btw</span>
-    </div>
-    <div data-testid="user-input-step">
-      <span>Couldn't load Google Drive link title</span>
-      <span>Enter a side question after /btw</span>
-    </div>`);
-  const alert = document.querySelector('[role="alert"]');
-  assert.equal(alert.querySelector('strong').textContent, '无法加载 Google Drive 链接标题');
-  assert.deepEqual([...alert.querySelectorAll('span')].map(el => el.textContent), [
-    '获取 Google Drive 文件标题超时，链接已按原样保留。',
-    '请在 /btw 后输入旁路提问内容'
-  ]);
-  const user = document.querySelector('[data-testid="user-input-step"]');
-  assert.deepEqual([...user.querySelectorAll('span')].map(el => el.textContent), [
-    "Couldn't load Google Drive link title",
-    'Enter a side question after /btw'
-  ]);
 });
 
 test('relative clocks translate only UI timestamps, including updates and reparenting', async t => {
@@ -1441,6 +1710,7 @@ const docsPluginOrigin = {
 test('project and unassigned settings localize verified official descriptions and preserve identical custom copy', async t => {
   const text = 'Read, draft, and edit docs.';
   const swarmText = 'Unlock the power of agent swarms.';
+  const geminiText = "Build applications and shell workflows with the Gemini Interactions API, Decisions API, Live API, Genie 4 interactive worlds, and Gemini API CLI, including text, image, video, speech, and music generation, managed agents, and real-time multimodal streaming.";
   const row = (id, name, description) => `
     <article>
       <span class="font-medium truncate" data-tooltip-id="${id}">${name}</span>
@@ -1453,6 +1723,8 @@ test('project and unassigned settings localize verified official descriptions an
         ${row('docs', 'Google Docs', text)}
         ${row('local-docs', 'Google Docs', text)}
         ${row('other-origin', 'Google Docs', text)}
+        ${row('gemini', 'Gemini API', geminiText)}
+        ${row('local-gemini', 'Gemini API', geminiText)}
         ${row('swarm', 'Swarm', swarmText)}
         ${row('local-swarm', 'Swarm', swarmText)}
         ${row('edited', 'Google Docs', 'Settings')}
@@ -1466,11 +1738,13 @@ test('project and unassigned settings localize verified official descriptions an
       for (const el of doc.querySelectorAll('[data-case]')) {
         const kind = el.getAttribute('data-case');
         const swarm = kind.endsWith('swarm');
-        const name = swarm ? 'swarm' : kind === 'guidance' ? 'modern-web-guidance-plugin' : 'gdocs';
+        const gemini = kind.endsWith('gemini');
+        const name = swarm ? 'swarm' : gemini ? 'gemini-api' : kind === 'guidance' ? 'modern-web-guidance-plugin' : 'gdocs';
         let provenance = {};
         if (kind === 'swarm') provenance = { isBuiltin: true };
         if (kind === 'docs' || kind === 'edited') provenance = docsPluginOrigin;
         if (kind === 'other-origin') provenance = { installedFrom: { ...docsPluginOrigin.installedFrom, id: 'antigravity-plugins-official/plugin/other' } };
+        if (kind === 'gemini') provenance = { installedFrom: { ...docsPluginOrigin.installedFrom, id: 'antigravity-plugins-official/plugin/gemini-api' } };
         if (kind === 'guidance') provenance = { installedFrom: { ...docsPluginOrigin.installedFrom, id: 'antigravity-plugins-official/plugin/modern-web-guidance-plugin' } };
         el.__reactFiber$fixture = pluginDescriptionFiber(el, name, provenance).fiber;
       }
@@ -1483,12 +1757,15 @@ test('project and unassigned settings localize verified official descriptions an
     assert.equal(get('docs').title, 'Settings');
     assert.equal(get('local-docs').textContent, text);
     assert.equal(get('other-origin').textContent, text);
+    assert.equal(get('gemini').textContent, officialPluginDescriptions[geminiText].translation);
+    assert.equal(get('local-gemini').textContent, geminiText);
     assert.equal(get('swarm').textContent, '发挥多智能体协作的优势。');
     assert.equal(get('local-swarm').textContent, swarmText);
     assert.equal(get('edited').textContent, 'Settings');
     assert.equal(get('guidance').textContent, '让您的编码智能体紧跟最新的 Web 最佳实践。');
     assert.equal(view.querySelector('[data-tooltip-id="guidance"]').textContent, 'Modern Web Guidance');
     assert.equal(view.querySelector('[data-tooltip-id="docs"]').textContent, 'Google Docs');
+    assert.equal(view.querySelector('[data-tooltip-id="gemini"]').textContent, 'Gemini API');
     assert.equal(view.querySelector('button').textContent, '复制路径');
   }
   assert.equal(document.querySelector('#quoted [data-case="docs"]').textContent, text);
@@ -1889,170 +2166,205 @@ test('2.31 download approvals and voice cards distinguish controls from generate
   assert.equal(document.querySelector('[data-testid="gcp-project-combobox-trigger"]').getAttribute('aria-label'), '展开或收起 Google Cloud 项目列表');
 });
 
-test('2.35 marketplace categories, browsing data modal and settings localize without leaking into user text', async t => {
+test('2.35.2 Google Drive link title warnings and /btw empty input prompt translate without touching user content', async t => {
   const { document } = await fixture(t, `
-    <div data-testid="customizations-marketplace">
-      <div data-testid="marketplace-category-option-design">Design</div>
-      <div data-testid="marketplace-category-chip">Cloud</div>
-      <section aria-label="Productivity"><div><h2>Productivity</h2></div>
-        <button>See more in Productivity</button>
-      </section>
+    <div role="alert" id="btw-hint">Enter a side question after /btw</div>
+    <div role="dialog" aria-labelledby="drive-title">
+      <h2 id="drive-title">Couldn't load Google Drive link title</h2>
+      <p id="drive-denied">You don't have access to this Google Drive file, so its title couldn't be added. The link was kept as-is.</p>
+      <p id="drive-timeout">Timed out fetching the Google Drive file's title. The link was kept as-is.</p>
+      <p id="drive-failed">Couldn't fetch the Google Drive file's title. The link was kept as-is.</p>
     </div>
-    <div id="ordinary-words"><span>Design</span><span>Cloud</span></div>
-    <section data-testid="user-message-content"><p>Clear Browsing Data?</p><p>Prevent sleep</p></section>
-    <div id="settings-panel">
-      <span>Prevent sleep</span>
-      <span>Keep in menu bar</span>
-      <span>Clear Browsing Data?</span>
-    </div>`);
-  assert.equal(document.querySelector('[data-testid="marketplace-category-option-design"]').textContent, '设计与创意');
-  assert.equal(document.querySelector('[data-testid="marketplace-category-chip"]').textContent, '云服务');
-  assert.equal(document.querySelector('[data-testid="customizations-marketplace"] h2').textContent, '效率与协作');
-  assert.equal(document.querySelector('[data-testid="customizations-marketplace"] button').textContent, '在效率与协作中查看更多');
-  assert.deepEqual([...document.querySelectorAll('#ordinary-words span')].map(el => el.textContent), ['Design', 'Cloud']);
-  assert.deepEqual([...document.querySelectorAll('section[data-testid="user-message-content"] p')].map(el => el.textContent), ['Clear Browsing Data?', 'Prevent sleep']);
-  assert.deepEqual([...document.querySelectorAll('#settings-panel span')].map(el => el.textContent), ['阻止系统休眠', '保持在菜单栏/托盘', '清除浏览数据？']);
+    <div data-testid="user-input-step"><span>Enter a side question after /btw</span></div>
+    <pre><code>Couldn't load Google Drive link title</code></pre>`);
+  assert.equal(document.querySelector('#btw-hint').textContent, '请在 /btw 后输入旁路提问内容');
+  assert.equal(document.querySelector('#drive-title').textContent, '无法加载 Google Drive 链接标题');
+  assert.equal(document.querySelector('#drive-denied').textContent, '您没有权限访问此 Google Drive 文件，因此未能添加标题，链接已按原样保留。');
+  assert.equal(document.querySelector('#drive-timeout').textContent, '获取 Google Drive 文件标题超时，链接已按原样保留。');
+  assert.equal(document.querySelector('#drive-failed').textContent, '无法获取此 Google Drive 文件的标题，链接已按原样保留。');
+  assert.equal(document.querySelector('[data-testid="user-input-step"] span').textContent, 'Enter a side question after /btw');
+  assert.equal(document.querySelector('pre code').textContent, "Couldn't load Google Drive link title");
 });
 
-test('2.35 slash menu preserves dir=rtl Before paths and dynamically retranslates across search highlight splits', async t => {
-  const { document, window } = await fixture(t, `
-    <div role="listbox" data-mention-menu="">
-      <div role="option" id="opt-plan">
-        <span data-testid="menu-option-label">plan</span>
-        <span data-testid="menu-option-description" dir="auto">Plan carefully before executing a task.</span>
-      </div>
-      <div role="option" id="opt-boost">
-        <span data-testid="menu-option-label">boost</span>
-        <span data-testid="menu-option-description" dir="auto">Invoke the Boost multi-agent orchestrator for complex tasks.</span>
-      </div>
-      <div role="option" id="opt-rtl-single">
-        <span data-testid="menu-option-label">Before</span>
-        <span data-testid="menu-option-description" dir="rtl">Before</span>
-      </div>
-    </div>`);
-  const planDesc = document.querySelector('#opt-plan [data-testid="menu-option-description"]');
-  const boostDesc = document.querySelector('#opt-boost [data-testid="menu-option-description"]');
-  const rtlDesc = document.querySelector('#opt-rtl-single [data-testid="menu-option-description"]');
+test('2.36.0 floating composer localizes status, badges and placeholder while protecting drafts and dynamic tool labels', async t => {
+  const { document, translate } = await fixture(t, `
+    <div data-testid="aux-pane-floating-composer" data-mode="collapsed">
+      <button id="status-known" type="button" data-testid="aux-pane-floating-composer-status"
+        aria-label="Subagent needs approval — restore split view" title="Subagent needs approval">
+        <span>Subagent needs approval</span>
+      </button>
+      <button id="status-retry" type="button" data-testid="aux-pane-floating-composer-status"
+        aria-label="Model unavailable, retrying in 8s (attempt 2/5) — restore split view"
+        title="Model unavailable, retrying in 8s (attempt 2/5)">
+        <span>Model unavailable, retrying in 8s (attempt 2/5)</span>
+      </button>
+      <button id="status-tool" type="button" data-testid="aux-pane-floating-composer-status"
+        aria-label="Running npm test — restore split view" title="Running npm test">
+        <span>Running npm test</span>
+      </button>
+      <button id="trigger-empty" type="button" data-testid="aux-pane-floating-composer-trigger">
+        <span id="placeholder" class="min-w-0 truncate opacity-60">Ask anything</span>
+        <span data-testid="aux-pane-floating-composer-comment-badge" data-count="1">
+          <span id="comment-single"></span>
+        </span>
+      </button>
+      <button id="trigger-draft" type="button" data-testid="aux-pane-floating-composer-trigger">
+        <span id="draft-settings" class="min-w-0 truncate opacity-90">Settings</span>
+      </button>
+      <button id="trigger-draft-same" type="button" data-testid="aux-pane-floating-composer-trigger">
+        <span id="draft-ask" class="min-w-0 truncate opacity-90">Ask anything</span>
+      </button>
+      <button id="trigger-both" type="button" data-testid="aux-pane-floating-composer-trigger">
+        <span data-testid="aux-pane-floating-composer-comment-badge" data-count="2">
+          <span id="comment-both">2<span class="sr-only"> Comments</span></span>
+        </span>
+        <span data-testid="aux-pane-floating-composer-attachment-badge" data-count="3">
+          <span id="attach-both">3<span class="sr-only"> Attached</span></span>
+        </span>
+      </button>
+      <button id="trigger-attach-only" type="button" data-testid="aux-pane-floating-composer-trigger">
+        <span data-testid="aux-pane-floating-composer-attachment-badge" data-count="1">
+          <span id="attach-single"></span>
+        </span>
+      </button>
+    </div>
+    <div data-testid="aux-pane-floating-composer" data-mode="expanded" role="region" aria-label="Conversation input"></div>
+    <p id="outside-ask">Ask anything</p>
+    <span id="outside-attached">Attached</span>
+    <button id="outside-status" aria-label="Working — restore split view">Working</button>`);
 
-  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
-  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
-  assert.equal(rtlDesc.textContent, 'Before');
+  // Simulate React split text nodes for comment & attachment badges
+  const commentSingle = document.querySelector('#comment-single');
+  const countNode = document.createTextNode('1');
+  const suffixNode = document.createTextNode(' Comment');
+  commentSingle.append(countNode, suffixNode);
 
-  // 1. 输入搜索词导致描述动态替换为 3 个高亮 <span>，Observer 自动重算整行保持中文
-  planDesc.innerHTML = '<span>Plan carefully before executing a </span><span class="hl">task</span><span>.</span>';
-  boostDesc.innerHTML = '<span>Invoke the </span><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span>';
-  await settle(window);
-  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
-  assert.equal(planDesc.querySelectorAll('span').length, 3);
-  // 若译文中保留原样英文关键词（如 Boost），高亮 span 应精准承载该关键词
-  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
-  assert.equal(boostDesc.querySelector('span.hl').textContent, 'Boost');
+  const attachSingle = document.querySelector('#attach-single');
+  const attachCount = document.createTextNode('1');
+  const attachSuffix = document.createTextNode(' Attached');
+  attachSingle.append(attachCount, attachSuffix);
+  translate(document.body);
 
-  // 2. 清空搜索词恢复单文本节点，译文继续保持正常
-  planDesc.textContent = 'Plan carefully before executing a task.';
-  boostDesc.textContent = 'Invoke the Boost multi-agent orchestrator for complex tasks.';
-  await settle(window);
-  assert.equal(planDesc.textContent, '在执行任务前仔细制定计划。');
-  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
-  assert.equal(rtlDesc.textContent, 'Before');
+  assert.equal(document.querySelector('#status-known span').textContent, '子智能体需要审批');
+  assert.equal(document.querySelector('#status-known').getAttribute('title'), '子智能体需要审批');
+  assert.equal(document.querySelector('#status-known').getAttribute('aria-label'), '子智能体需要审批 — 恢复分栏视图');
+
+  assert.equal(document.querySelector('#status-retry span').textContent, '模型暂不可用，8 秒后重试（第 2/5 次）');
+  assert.equal(document.querySelector('#status-retry').getAttribute('aria-label'), '模型暂不可用，8 秒后重试（第 2/5 次） — 恢复分栏视图');
+
+  assert.equal(document.querySelector('#status-tool span').textContent, 'Running npm test');
+  assert.equal(document.querySelector('#status-tool').getAttribute('title'), 'Running npm test');
+  assert.equal(document.querySelector('#status-tool').getAttribute('aria-label'), 'Running npm test — 恢复分栏视图');
+
+  assert.equal(document.querySelector('#placeholder').textContent, '输入任何问题');
+  assert.equal(document.querySelector('#draft-settings').textContent, 'Settings');
+  assert.equal(document.querySelector('#draft-ask').textContent, 'Ask anything');
+  assert.equal(commentSingle.textContent, '1 条评论');
+  assert.equal(attachSingle.textContent, '1 个附件');
+  assert.equal(document.querySelector('#comment-both').textContent, '2 条评论');
+  assert.equal(document.querySelector('#attach-both').textContent, '3 个附件');
+
+  // React updates count & plural suffix in place without losing the localized suffix
+  countNode.nodeValue = '2';
+  suffixNode.nodeValue = ' Comments';
+  translate(commentSingle);
+  assert.equal(commentSingle.textContent, '2 条评论');
+
+  // Switching the reused span from placeholder (opacity-60) to saved draft (opacity-90) restores source text
+  const placeholderEl = document.querySelector('#placeholder');
+  placeholderEl.classList.remove('opacity-60');
+  placeholderEl.classList.add('opacity-90');
+  translate(placeholderEl);
+  assert.equal(placeholderEl.textContent, 'Ask anything');
+
+  assert.equal(document.querySelector('[data-mode="expanded"]').getAttribute('aria-label'), '对话输入');
+  // Negative boundary checks outside floating composer
+  assert.equal(document.querySelector('#outside-ask').textContent, 'Ask anything');
+  assert.equal(document.querySelector('#outside-attached').textContent, 'Attached');
+  assert.equal(document.querySelector('#outside-status').getAttribute('aria-label'), 'Working — restore split view');
 });
 
-test('builtin slash command descriptions follow verified SYSTEM provenance and protect custom skills', async t => {
-  function attachOptionFiber(descEl, itemObj) {
-    const root = { tag: 3 };
-    root.stateNode = { current: root };
-    const rowFiber = { memoizedProps: { item: itemObj }, return: root };
-    descEl.__reactFiber$fixture = { stateNode: descEl, return: rowFiber };
-    return rowFiber;
-  }
-  const makeSystemSlash = (name, text) => ({
-    item: { scopeItem: { case: 'slashCommand', value: { info: { name, type: 1 } } } },
-    getRenderInfo: () => ({ description: { text } })
-  });
-  const makeRecipeSkill = (name, text) => ({
-    item: { scopeItem: { case: 'recipe', value: { title: name, description: text } } },
-    getRenderInfo: () => ({ description: { text } })
-  });
-  const makePluginSkill = (name, text) => ({
-    item: { scopeItem: { case: 'slashCommand', value: { info: { name, type: 2, plugin: { name: 'third-party' } } } } },
-    getRenderInfo: () => ({ description: { text } })
-  });
-  const planSrc = 'Plan carefully before executing a task.';
-  const boostSrc = 'Invoke the Boost multi-agent orchestrator for complex tasks.';
-  let planRowFiber;
+test('2.36.0 wallet, remote capacity, app menu, admin plugin policies and cloud OAuth localize with strict boundaries', async t => {
+  const { document } = await fixture(t, `
+    <button id="app-menu" aria-label="Application Menu" data-testid="app-logo-menu-trigger"></button>
+    <div id="wallet-card">
+      <h3>Organization prepaid wallet is empty</h3>
+      <p>Your organization has run out of Antigravity funds. Prompt generation is paused until your administrator adds funds.</p>
+    </div>
+    <div id="capacity-cards">
+      <h4>Remote agents are busy</h4>
+      <h4>Daily environment time used</h4>
+      <h4>Too many environments running</h4>
+      <h4>Plan upgrade required</h4>
+      <h4>Daily conversation limit reached</h4>
+      <h4>Conversation limit reached</h4>
+    </div>
+    <button id="create-disabled" data-testid="plugins-create-with-prompt"
+      aria-label="Create plugin, Plugins are disabled by your organization.">Create</button>
+    <button id="market-disabled" data-testid="marketplace-invitation"
+      aria-label='Search for "foo, bar" in the Marketplace, The plugin marketplace is disabled by your organization.'>Browse the Marketplace</button>
+    <button id="see-bundles" aria-label="See 2 more bundles">See 2 more</button>
+    <div data-testid="remote-plugin-configure">
+      <span id="cfg-err-raw">Couldn't load plugin configuration: ETIMEDOUT 10.0.0.1</span>
+      <span id="cfg-saved">Configuration saved.</span>
+      <button id="cfg-retry" aria-label="Retry loading GitHub MCP configuration">Try again</button>
+      <button id="cfg-open" aria-label="Configure GitHub MCP">Configure</button>
+    </div>
+    <div data-testid="remote-automation-oauth-consent-callout">
+      <span id="oauth-specific">Connect an account for Gmail, Calendar so the agent can run automations.</span>
+      <span id="oauth-generic">Connect an account so the agent can run automations.</span>
+      <button id="oauth-btn">Refreshing credentials...</button>
+    </div>
+    <div id="cloud-expired">Cloud automation credentials expired — re-authorize to resume scheduled runs.</div>
+    <span id="shortcut-menu">managed by application menu</span>
+    <span id="shortcut-sidebar">reserved for sidebar switching</span>
+    <div data-testid="user-input-step">
+      <span id="user-wallet">Organization prepaid wallet is empty</span>
+      <span id="user-cfg-err">Couldn't load plugin configuration: Settings</span>
+      <span id="user-cfg-btn">Configure GitHub MCP</span>
+    </div>
+    <button id="outside-cfg" aria-label="Retry loading GitHub MCP configuration">Settings</button>`);
+
+  assert.equal(document.querySelector('#app-menu').getAttribute('aria-label'), '应用菜单');
+  assert.equal(document.querySelector('#wallet-card h3').textContent, '组织预付余额已用尽');
+  assert.equal(document.querySelector('#wallet-card p').textContent, '您的组织已用完 Antigravity 预付余额。在管理员充值前，提示词生成已暂停。');
+  assert.deepEqual([...document.querySelectorAll('#capacity-cards h4')].map(el => el.textContent), [
+    '远程智能体正忙',
+    '今日环境使用时长已用尽',
+    '运行中的环境数量过多',
+    '需要升级方案',
+    '已达到每日会话上限',
+    '已达到会话数量上限'
+  ]);
+  assert.equal(document.querySelector('#create-disabled').getAttribute('aria-label'), '创建插件，您的组织已禁用插件。');
+  assert.equal(document.querySelector('#market-disabled').getAttribute('aria-label'), '在扩展市场中搜索“foo, bar”，您的组织已禁用插件市场。');
+  assert.equal(document.querySelector('#see-bundles').getAttribute('aria-label'), '再查看 2 个组合包');
+  assert.equal(document.querySelector('#cfg-err-raw').textContent, '无法加载插件配置：ETIMEDOUT 10.0.0.1');
+  assert.equal(document.querySelector('#cfg-saved').textContent, '配置已保存。');
+  assert.equal(document.querySelector('#cfg-retry').getAttribute('aria-label'), '重试加载 GitHub MCP 配置');
+  assert.equal(document.querySelector('#cfg-open').getAttribute('aria-label'), '配置 GitHub MCP');
+  assert.equal(document.querySelector('#oauth-specific').textContent, '为 Gmail, Calendar 连接账号，以便智能体运行自动化任务。');
+  assert.equal(document.querySelector('#oauth-generic').textContent, '连接账号，以便智能体运行自动化任务。');
+  assert.equal(document.querySelector('#oauth-btn').textContent, '正在刷新凭据...');
+  assert.equal(document.querySelector('#cloud-expired').textContent, '云端自动化凭据已过期 — 请重新授权以恢复定时运行。');
+  assert.equal(document.querySelector('#shortcut-menu').textContent, '由应用菜单管理');
+  assert.equal(document.querySelector('#shortcut-sidebar').textContent, '保留用于侧边栏切换');
+  // Negative boundary checks
+  assert.equal(document.querySelector('#user-wallet').textContent, 'Organization prepaid wallet is empty');
+  assert.equal(document.querySelector('#user-cfg-err').textContent, "Couldn't load plugin configuration: Settings");
+  assert.equal(document.querySelector('#user-cfg-btn').textContent, 'Configure GitHub MCP');
+  assert.equal(document.querySelector('#outside-cfg').getAttribute('aria-label'), 'Retry loading GitHub MCP configuration');
+});
+
+test('Plus hover-card-description preserves highlight spans across dynamic search splits', async t => {
   const { document, window } = await fixture(t, `
     <div role="listbox" data-mention-menu="">
-      <div role="option" id="opt-sys-plan">
-        <span data-testid="menu-option-label">/plan</span>
-        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
-      </div>
-      <div role="option" id="opt-boost">
-        <span data-testid="menu-option-label">boost</span>
-        <span data-testid="menu-option-description" dir="auto">${boostSrc}</span>
-      </div>
-      <div role="option" id="opt-user-recipe">
-        <span data-testid="menu-option-label">custom-plan</span>
-        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
-      </div>
-      <div role="option" id="opt-plugin">
-        <span data-testid="menu-option-label">plan</span>
-        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
-      </div>
-      <div role="option" id="opt-rtl-path">
-        <span data-testid="menu-option-label">Before</span>
-        <span data-testid="menu-option-description" dir="rtl">Before</span>
-      </div>
-    </div>`, {
-    builtinSlash: true,
-    beforeStart(doc) {
-      planRowFiber = attachOptionFiber(doc.querySelector('#opt-sys-plan [data-testid="menu-option-description"]'), makeSystemSlash('plan', planSrc));
-      attachOptionFiber(doc.querySelector('#opt-boost [data-testid="menu-option-description"]'), makeSystemSlash('boost', boostSrc));
-      attachOptionFiber(doc.querySelector('#opt-user-recipe [data-testid="menu-option-description"]'), makeRecipeSkill('custom-plan', planSrc));
-      attachOptionFiber(doc.querySelector('#opt-plugin [data-testid="menu-option-description"]'), makePluginSkill('plan', planSrc));
-      attachOptionFiber(doc.querySelector('#opt-rtl-path [data-testid="menu-option-description"]'), makeRecipeSkill('Before', 'Before'));
-    }
-  });
-  const sysDesc = document.querySelector('#opt-sys-plan [data-testid="menu-option-description"]');
-  const boostDesc = document.querySelector('#opt-boost [data-testid="menu-option-description"]');
-  const userDesc = document.querySelector('#opt-user-recipe [data-testid="menu-option-description"]');
-  const pluginDesc = document.querySelector('#opt-plugin [data-testid="menu-option-description"]');
-  const rtlDesc = document.querySelector('#opt-rtl-path [data-testid="menu-option-description"]');
-  assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
-  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
-  assert.equal(userDesc.textContent, planSrc);
-  assert.equal(pluginDesc.textContent, planSrc);
-  assert.equal(rtlDesc.textContent, 'Before');
-
-  // 1. 搜索高亮：无法将高亮词（如 task）映射进译文时，保留带高亮原文不清空；可映射关键词（如 Boost）时重排译文并保留高亮
-  sysDesc.innerHTML = '<span>Plan carefully before executing a </span><span class="hl">task</span><span>.</span>';
-  boostDesc.innerHTML = '<span>Invoke the </span><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span>';
+      <div data-testid="hover-card-description"><span>Invoke the </span><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span></div>
+    </div>`);
+  const hoverDesc = document.querySelector('[data-testid="hover-card-description"]');
+  assert.equal(hoverDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(hoverDesc.querySelector('span.hl').textContent, 'Boost');
+  hoverDesc.innerHTML = '<span>Custom author </span><span class="hl">note</span><span> stays original.</span>';
   await settle(window);
-  assert.equal(sysDesc.textContent, planSrc);
-  assert.equal(sysDesc.querySelector('span.hl').textContent, 'task');
-  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
-  assert.equal(boostDesc.querySelector('span.hl').textContent, 'Boost');
-
-  // 2. 清空搜索词恢复单文本节点，译文自动切回中文
-  sysDesc.textContent = planSrc;
-  boostDesc.textContent = boostSrc;
-  await settle(window);
-  assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
-  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
-
-  // 3. 单独切换 dir="rtl"（说明文本不变）立即还原原文，切回 dir="auto" 重新翻译
-  sysDesc.setAttribute('dir', 'rtl');
-  await settle(window);
-  assert.equal(sysDesc.textContent, planSrc);
-  sysDesc.setAttribute('dir', 'auto');
-  await settle(window);
-  assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
-
-  // 4. 行复用仅替换标签和 Fiber 来源为自定义技能（且未重建说明文本节点）时，立即还原原文
-  const sysDescTextNode = sysDesc.firstChild;
-  document.querySelector('#opt-sys-plan [data-testid="menu-option-label"]').textContent = 'my-skill';
-  planRowFiber.memoizedProps.item = makeRecipeSkill('my-skill', planSrc);
-  await settle(window);
-  assert.equal(sysDesc.firstChild, sysDescTextNode);
-  assert.equal(sysDesc.textContent, planSrc);
-  assert.equal(rtlDesc.textContent, 'Before');
+  assert.equal(hoverDesc.textContent, 'Custom author note stays original.');
 });

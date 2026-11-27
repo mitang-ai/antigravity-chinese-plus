@@ -2,12 +2,12 @@
 
 # Google Antigravity 中文汉化增强版（antigravity-chinese-plus）
 
-**适配 Antigravity App 2.35.2 & VS Code 扩展 1.13.0 · 桌面客户端全界面中文化 · `/` 斜杠指令翻译 · 内置 Google 免费详情页实时翻译**
+**适配 Antigravity App 2.36.0 & VS Code 扩展 1.13.0 · 桌面客户端全界面中文化 · `/` 斜杠指令翻译 · 内置 Google 免费详情页实时翻译**
 
 <p>
   <a href="https://github.com/mitang-ai/antigravity-chinese-plus/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/mitang-ai/antigravity-chinese-plus/ci.yml?branch=main&amp;label=CI&amp;logo=github" alt="CI 构建状态"></a>
-  <img src="https://img.shields.io/badge/Version-v3.6.5-2563eb" alt="当前版本 v3.6.5">
-  <img src="https://img.shields.io/badge/Antigravity_App-2.35.2-10b981" alt="适配 Antigravity 2.35.2">
+  <img src="https://img.shields.io/badge/Version-v3.6.6-2563eb" alt="当前版本 v3.6.6">
+  <img src="https://img.shields.io/badge/Antigravity_App-2.36.0-10b981" alt="适配 Antigravity 2.36.0">
   <img src="https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-475569" alt="支持平台 Windows macOS Linux">
   <img src="https://img.shields.io/badge/Node.js-%3E%3D18-16a34a?logo=node.js" alt="需要 Node.js 18 及以上">
   <img src="https://img.shields.io/badge/Tests-15_Suites%20%7C%2045_Audits-0d9488" alt="15 套测试与 45 项一致性审计">
@@ -155,7 +155,7 @@ Google Antigravity（反重力）目前没有官方中文界面，且扩展市�
 
 每次词库更新或引擎修改均可在本仓库本地验证后再发布。
 
-- **当前验证数据（Windows x64 · Antigravity App 2.35.2 / 2.35.1 / 2.35.0）**：
+- **当前验证数据（Windows x64 · Antigravity App 2.36.0 / 2.35.2 / 2.35.0）**：
   - `npm run build:dict`：编译产出 **5,117** 条精确词条与 **445** 组级联正则（[dict/zh-CN.json](dict/zh-CN.json) & [dist/zh-CN.bundle.json](dist/zh-CN.bundle.json)）。
   - `npm test`（**聚合 15 套自动化测试**）：涵盖语法编译门禁、UI 黄金语义、JSDOM 内容保护边界、Swarm 面板隔离、性能扫描基准、ASAR 升级与断电回滚生命周期、VS Code 微代理补丁、Google 实时翻译、斜杠高亮及外置持久化守护 (`test-guardian.js`) 专项测试，最后串联 `tools/ultimate-consistency-audit.js`（45 项静态一致性检查）。
   - 实机适配依据见 [2.35.0 / 2.35.1 维护记录](docs/maintenance/antigravity-2.35.0.md)；`macOS`、`Linux` 及 `VS Code` 扩展部分在本轮中的验证范围为跨平台自动化回归与脚本链路核验。
@@ -194,7 +194,7 @@ npm run audit        # 仅运行 45 项静态一致性体检
 
 ## 致谢与开源协议
 
-- **上游致谢**：本项目基于开源项目 [yiheng8023/antigravity-chinese](https://github.com/yiheng8023/antigravity-chinese)（MIT License）构建与衍生增强，感谢原项目维护者以及此前提交问题定位与修复的社区贡献者（`a705876883-arch`、`fansID512`、`MizuIro-H`、`tangyixiao`、`Qiinn-71` 等）。本仓库在其基础上新增并完善了 Antigravity App `2.35.0–2.35.2` 全量适配、内置 `/` 斜杠指令翻译、内置 Google 免费实时翻译插件与本地永久缓存、多盘符/注册表安装探测及零闪退交互式安装体验。
+- **上游致谢**：本项目基于开源项目 [yiheng8023/antigravity-chinese](https://github.com/yiheng8023/antigravity-chinese)（MIT License）构建与衍生增强，感谢原项目维护者以及此前提交问题定位与修复的社区贡献者（`a705876883-arch`、`fansID512`、`MizuIro-H`、`tangyixiao`、`Qiinn-71` 等）。本仓库在其基础上新增并完善了 Antigravity App `2.35.0–2.36.0` 全量适配、内置 `/` 斜杠指令翻译、内置 Google 免费实时翻译插件与本地永久缓存、多盘符/注册表安装探测及零闪退交互式安装体验。
 - **商标与合规声明**：本项目为社区独立维护的开源工具，与 Google LLC 无官方从属关系；`Google`、`Google Antigravity`、`Gemini` 等商标归各自所有者所有。
 - **开源协议**：本项目以 [MIT License](LICENSE) 开源发布。
 

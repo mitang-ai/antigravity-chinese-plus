@@ -595,7 +595,6 @@
   "No apps available.": "暂无可用应用。",
   "No apps connected yet. Connect one from Marketplace.": "尚未连接任何应用，请从市场中连接。",
   "Failed to add bundle.": "添加捆绑包失败。",
-  "Account connection was not completed.": "账号连接未完成。",
   "Browse MCP resources": "浏览 MCP 资源",
   "Browse rules": "浏览规则",
   "Untrusted sidecar": "不受信任的辅助进程",
@@ -618,5 +617,14 @@
   "(Preview & Quota Heavy) Run a swarm: several agents working in parallel on one task, each in its own conversation, collaborating through a shared message board. Use when the work splits into pieces that can be done at the same time, or when a second pair of eyes should check the first pair's work.": "（预览版 · 消耗较高配额）运行 Swarm 蜂群：多个智能体各自在独立会话中并行处理同一任务，并通过共享消息板协作。适用于可并行拆分的任务，或需要多视角交叉复核的场景。",
   "ONLY for the native-swarm worker whose brief says it is the monitor. On a timer, it checks whether the whole swarm has stalled and calls on the one member who can unstick it. Coordinators and other workers: do not load this.": "仅供任务简报指定为监控员的原生 Swarm 成员使用。通过定时器检查整体蜂群是否停滞并唤醒相应成员。协调者与其他成员请勿加载。",
   "ONLY for the native-swarm worker whose brief says it is the narrator. It watches the board and keeps the facts behind the user's Overview (view.json) current. Coordinators and other workers: do not load this.": "仅供任务简报指定为记录员的原生 Swarm 成员使用。实时监听消息板并同步更新用户概览（view.json）。协调者与其他成员请勿加载。",
-  "ONLY for the coordinator of an active /swarm session. What the coordinator writes so the Swarm UI's Overview can show the swarm's goal, its groups of work and a screenshot timeline; load it before you brief and add the first workers. Outside /swarm, do not load this.": "仅供处于活跃状态的 /swarm 会话协调者使用，用于维护 Swarm 概览中的任务目标、分组与截图时间线；请在派发首个成员前加载。非 /swarm 会话请勿加载。"
+  "ONLY for the coordinator of an active /swarm session. What the coordinator writes so the Swarm UI's Overview can show the swarm's goal, its groups of work and a screenshot timeline; load it before you brief and add the first workers. Outside /swarm, do not load this.": "仅供处于活跃状态的 /swarm 会话协调者使用，用于维护 Swarm 概览中的任务目标、分组与截图时间线；请在派发首个成员前加载。非 /swarm 会话请勿加载。",
+  "Plugins are unavailable until your organization's policy loads.": "在组织策略加载完成前，插件暂不可用。",
+  "Plugins are disabled by your organization.": "您的组织已禁用插件。",
+  "The plugin marketplace is disabled by your organization.": "您的组织已禁用插件市场。",
+  "See more plugins": "查看更多插件",
+  "See more bundles": "查看更多组合包",
+  "Couldn't load plugin configuration.": "无法加载插件配置。",
+  "Configuration saved.": "配置已保存。",
+  "Add your API key or configuration to use this plugin.": "请添加 API 密钥或配置以使用此插件。",
+  "Saved securely. Secret values are hidden after saving.": "已安全保存。敏感值在保存后将被隐藏。"
 }
