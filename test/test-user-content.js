@@ -1973,7 +1973,12 @@ test('builtin slash command descriptions follow verified SYSTEM provenance and p
     item: { scopeItem: { case: 'recipe', value: { title: name, description: text } } },
     getRenderInfo: () => ({ description: { text } })
   });
+  const makePluginSkill = (name, text) => ({
+    item: { scopeItem: { case: 'slashCommand', value: { info: { name, type: 2, plugin: { name: 'third-party' } } } } },
+    getRenderInfo: () => ({ description: { text } })
+  });
   const planSrc = 'Plan carefully before executing a task.';
+  const boostSrc = 'Invoke the Boost multi-agent orchestrator for complex tasks.';
   let planRowFiber;
   const { document, window } = await fixture(t, `
     <div role="listbox" data-mention-menu="">
@@ -1981,26 +1986,73 @@ test('builtin slash command descriptions follow verified SYSTEM provenance and p
         <span data-testid="menu-option-label">/plan</span>
         <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
       </div>
+      <div role="option" id="opt-boost">
+        <span data-testid="menu-option-label">boost</span>
+        <span data-testid="menu-option-description" dir="auto">${boostSrc}</span>
+      </div>
       <div role="option" id="opt-user-recipe">
         <span data-testid="menu-option-label">custom-plan</span>
         <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+      <div role="option" id="opt-plugin">
+        <span data-testid="menu-option-label">plan</span>
+        <span data-testid="menu-option-description" dir="auto">${planSrc}</span>
+      </div>
+      <div role="option" id="opt-rtl-path">
+        <span data-testid="menu-option-label">Before</span>
+        <span data-testid="menu-option-description" dir="rtl">Before</span>
       </div>
     </div>`, {
     builtinSlash: true,
     beforeStart(doc) {
       planRowFiber = attachOptionFiber(doc.querySelector('#opt-sys-plan [data-testid="menu-option-description"]'), makeSystemSlash('plan', planSrc));
+      attachOptionFiber(doc.querySelector('#opt-boost [data-testid="menu-option-description"]'), makeSystemSlash('boost', boostSrc));
       attachOptionFiber(doc.querySelector('#opt-user-recipe [data-testid="menu-option-description"]'), makeRecipeSkill('custom-plan', planSrc));
+      attachOptionFiber(doc.querySelector('#opt-plugin [data-testid="menu-option-description"]'), makePluginSkill('plan', planSrc));
+      attachOptionFiber(doc.querySelector('#opt-rtl-path [data-testid="menu-option-description"]'), makeRecipeSkill('Before', 'Before'));
     }
   });
   const sysDesc = document.querySelector('#opt-sys-plan [data-testid="menu-option-description"]');
+  const boostDesc = document.querySelector('#opt-boost [data-testid="menu-option-description"]');
   const userDesc = document.querySelector('#opt-user-recipe [data-testid="menu-option-description"]');
+  const pluginDesc = document.querySelector('#opt-plugin [data-testid="menu-option-description"]');
+  const rtlDesc = document.querySelector('#opt-rtl-path [data-testid="menu-option-description"]');
   assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
   assert.equal(userDesc.textContent, planSrc);
+  assert.equal(pluginDesc.textContent, planSrc);
+  assert.equal(rtlDesc.textContent, 'Before');
 
-  // 节点被复用为自定义技能时应立即还原原文
-  document.querySelector('#opt-sys-plan [data-testid="menu-option-label"]').textContent = 'my-skill';
-  planRowFiber.memoizedProps.item = makeRecipeSkill('my-skill', planSrc);
-  sysDesc.textContent = planSrc;
+  // 1. 搜索高亮：无法将高亮词（如 task）映射进译文时，保留带高亮原文不清空；可映射关键词（如 Boost）时重排译文并保留高亮
+  sysDesc.innerHTML = '<span>Plan carefully before executing a </span><span class="hl">task</span><span>.</span>';
+  boostDesc.innerHTML = '<span>Invoke the </span><span class="hl">Boost</span><span> multi-agent orchestrator for complex tasks.</span>';
   await settle(window);
   assert.equal(sysDesc.textContent, planSrc);
+  assert.equal(sysDesc.querySelector('span.hl').textContent, 'task');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+  assert.equal(boostDesc.querySelector('span.hl').textContent, 'Boost');
+
+  // 2. 清空搜索词恢复单文本节点，译文自动切回中文
+  sysDesc.textContent = planSrc;
+  boostDesc.textContent = boostSrc;
+  await settle(window);
+  assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
+  assert.equal(boostDesc.textContent, '调用 Boost 多智能体编排器处理复杂任务。');
+
+  // 3. 单独切换 dir="rtl"（说明文本不变）立即还原原文，切回 dir="auto" 重新翻译
+  sysDesc.setAttribute('dir', 'rtl');
+  await settle(window);
+  assert.equal(sysDesc.textContent, planSrc);
+  sysDesc.setAttribute('dir', 'auto');
+  await settle(window);
+  assert.equal(sysDesc.textContent, '在执行任务前仔细制定计划。');
+
+  // 4. 行复用仅替换标签和 Fiber 来源为自定义技能（且未重建说明文本节点）时，立即还原原文
+  const sysDescTextNode = sysDesc.firstChild;
+  document.querySelector('#opt-sys-plan [data-testid="menu-option-label"]').textContent = 'my-skill';
+  planRowFiber.memoizedProps.item = makeRecipeSkill('my-skill', planSrc);
+  await settle(window);
+  assert.equal(sysDesc.firstChild, sysDescTextNode);
+  assert.equal(sysDesc.textContent, planSrc);
+  assert.equal(rtlDesc.textContent, 'Before');
 });

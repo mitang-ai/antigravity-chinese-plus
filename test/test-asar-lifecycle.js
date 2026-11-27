@@ -1,9 +1,16 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
-const { isAsarPatched, getAsarFingerprint } = require('../cli');
+const { execSync, execFileSync, spawnSync } = require('child_process');
+const { isAsarPatched, getAsarFingerprint, install, commitStagedSwap, applyStagedOnce, manualInstall } = require('../cli');
 const asar = require('@electron/asar');
+
+const asarPkgPath = require.resolve('@electron/asar/package.json');
+const asarPkg = JSON.parse(fs.readFileSync(asarPkgPath, 'utf8'));
+const asarEntry = path.resolve(path.dirname(asarPkgPath), typeof asarPkg.bin === 'string' ? asarPkg.bin : asarPkg.bin.asar);
+function runAsar(args) {
+  execFileSync(process.execPath, [asarEntry, ...args], { stdio: 'ignore' });
+}
 
 console.log('🧪 ============================================================');
 console.log('🧪 开始执行真实 ASAR 生命周期注入、二次安装幂等与上游升级回归测试');
@@ -28,8 +35,6 @@ const mockSrcDir = path.join(testDir, 'src_mock');
 const asarPath = path.join(resourcesDir, 'app.asar');
 const backupPath = path.join(resourcesDir, 'app.asar.bak');
 const cliPath = path.join(__dirname, '..', 'cli.js');
-const asarBin = path.join(__dirname, '..', 'node_modules', '.bin', os.platform() === 'win32' ? 'asar.cmd' : 'asar');
-const asarCli = fs.existsSync(asarBin) ? `"${asarBin}"` : 'npx -y @electron/asar@3.2.14';
 
 const mockPluginDir = path.join(testDir, 'mock_plugins', 'chinese-toolkit');
 process.env.AGY_PLUGIN_DIR = mockPluginDir;
@@ -93,7 +98,7 @@ try {
   fs.writeFileSync(pluginMarker, pluginManifest, 'utf8');
 
   // 2. 打包出真实的初始 app.asar (版本 A)
-  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}" --unpack-dir "${path.join('node_modules', 'external-tool')}"`, { stdio: 'ignore' });
+  runAsar(['pack', mockSrcDir, asarPath, '--unpack-dir', path.join('node_modules', 'external-tool')]);
   assert(fs.existsSync(asarPath), '【阶段 1】初始版本 A app.asar 构建成功');
   assert(asar.statFile(asarPath, path.join('node_modules', 'external-tool', 'index.js')).unpacked === true,
     '原始测试包包含真实 unpacked 外置工具');
@@ -133,7 +138,7 @@ try {
   assert(!isAsarPatched(asarPath), '二次安装后执行 restore，成功恢复为未打补丁状态');
 
   const unpackDirA = path.join(testDir, 'unpack_A');
-  execSync(`${asarCli} extract "${asarPath}" "${unpackDirA}"`, { stdio: 'ignore' });
+  runAsar(['extract', asarPath, unpackDirA]);
   const restoredPreloadA = fs.readFileSync(path.join(unpackDirA, 'dist', 'preload.js'), 'utf-8');
   assert(restoredPreloadA === origPreloadA, '【P0 验证通过】二次安装后 restore 仍 100% 等于官方原版 A (未被已打补丁副本污染)');
   const restoredMainA = fs.readFileSync(path.join(unpackDirA, 'dist', 'main.js'), 'utf-8');
@@ -148,7 +153,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', { version: 'B_UPSTREAM_NEW' });
 `;
   fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadB, 'utf-8');
-  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
+  runAsar(['pack', mockSrcDir, asarPath]);
   assert(!isAsarPatched(asarPath), '官方新版本 B 已覆盖为原生未打补丁状态');
 
   // 在版本 B 上执行 install
@@ -164,7 +169,7 @@ contextBridge.exposeInMainWorld('api', { version: 'B_UPSTREAM_NEW' });
   assert(!isAsarPatched(asarPath), '版本 B restore 后恢复为未修改状态');
 
   const unpackDirB = path.join(testDir, 'unpack_B');
-  execSync(`${asarCli} extract "${asarPath}" "${unpackDirB}"`, { stdio: 'ignore' });
+  runAsar(['extract', asarPath, unpackDirB]);
   const restoredPreloadB = fs.readFileSync(path.join(unpackDirB, 'dist', 'preload.js'), 'utf-8');
   assert(restoredPreloadB === origPreloadB, '【P0 验证通过】版本 B 上打补丁并 restore 后 100% 等于新版本 B (绝未回退老版本 A)');
 
@@ -180,7 +185,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', { version: 'C_SILENT_UPGRADE_NEW' });
 `;
   fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadC, 'utf-8');
-  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
+  runAsar(['pack', mockSrcDir, asarPath]);
   assert(!isAsarPatched(asarPath), '官方新版本 C 已静默覆盖为原生未打补丁状态');
 
   // 此时直接执行 restore
@@ -188,7 +193,7 @@ contextBridge.exposeInMainWorld('api', { version: 'C_SILENT_UPGRADE_NEW' });
 
   // 验证当前 asar 仍 100% 为版本 C，绝未被旧 bak 降级覆盖！
   const unpackDirC = path.join(testDir, 'unpack_C');
-  execSync(`${asarCli} extract "${asarPath}" "${unpackDirC}"`, { stdio: 'ignore' });
+  runAsar(['extract', asarPath, unpackDirC]);
   const restoredPreloadC = fs.readFileSync(path.join(unpackDirC, 'dist', 'preload.js'), 'utf-8');
   assert(restoredPreloadC === origPreloadC, '【P1 验证通过】留存旧 bak 时官方静默推送新版 C，restore 成功阻止版本回退，完整保留版本 C！');
   // 7. 【AG-02 专项验证】历史遗留旧备份缺失 .fingerprint 时的自适应迁移与防降级防护
@@ -219,7 +224,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('api', { version: 'D_OFFICIAL_NEW_PRISTINE' });
 `;
   fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadD, 'utf-8');
-  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
+  runAsar(['pack', mockSrcDir, asarPath]);
   assert(!isAsarPatched(asarPath), 'Case B: 官方版本 D 已就绪');
 
   // 此时无 fingerprint 文件，执行 restore
@@ -227,7 +232,7 @@ contextBridge.exposeInMainWorld('api', { version: 'D_OFFICIAL_NEW_PRISTINE' });
 
   // 验证当前 asar 仍 100% 为版本 D，绝未被旧 bak 降级覆盖！
   const unpackDirD = path.join(testDir, 'unpack_D');
-  execSync(`${asarCli} extract "${asarPath}" "${unpackDirD}"`, { stdio: 'ignore' });
+  runAsar(['extract', asarPath, unpackDirD]);
   const restoredPreloadD = fs.readFileSync(path.join(unpackDirD, 'dist', 'preload.js'), 'utf-8');
   assert(restoredPreloadD === origPreloadD, '【AG-02 Case B 验证通过】无 fingerprint 时官方静默推新版 D，restore 成功拦截降级，100% 保持官方新版 D！');
 
@@ -265,52 +270,215 @@ contextBridge.exposeInMainWorld('api', { version: 'D_OFFICIAL_NEW_PRISTINE' });
   assert(fs.existsSync(pluginMarker) && fs.readFileSync(pluginMarker, 'utf8') === pluginManifest,
     '指定 --path 的还原保持全局插件文件不变');
 
-  // 10. 【阶段 7】staged 指纹校验防官方升级倒退、写元数据异常原子回滚、受保护环境防强杀与纯 VS Code 扩展安装向导
-  console.log('\n📦 【阶段 7】验证 staged 来源指纹防降级、写失败回滚、防强杀保护与纯 VS Code 场景...');
-  const { commitStagedSwap, manualInstall } = require('../cli');
+  // 10. 【阶段 7】staged 来源指纹防降级、安装竞态保护、原子元数据与回滚失败诊断、受保护环境防强杀与纯 VS Code 扩展安装向导
+  console.log('\n📦 【阶段 7】验证 staged 来源指纹防降级、安装竞态保护、原子元数据、回滚失败诊断、防强杀保护与纯 VS Code 场景...');
+  const oldAsarForStaged = path.join(resourcesDir, 'app.asar.old-fixture');
+  fs.copyFileSync(asarPath, oldAsarForStaged);
+  const oldFp = getAsarFingerprint(oldAsarForStaged);
 
-  // 7a. 模拟旧版 B 的 staged 残留，但磁盘 app.asar 已被官方静默升级成新版 E
-  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
-  const oldAsarFp = getAsarFingerprint(asarPath);
+  const origPreloadE = `"use strict";
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('api', { version: 'E_OFFICIAL_LATEST' });
+`;
+  fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadE, 'utf-8');
+  runAsar(['pack', mockSrcDir, asarPath]);
+  const fpE = getAsarFingerprint(asarPath);
+  assert(oldFp !== fpE, '旧版与官方新版 E 指纹不同');
+
   const stagedPath = path.join(resourcesDir, 'app.asar.staged');
   const stagedMetaPath = path.join(resourcesDir, 'app.asar.staged.meta.json');
-  fs.writeFileSync(stagedPath, 'STALE_OLD_PATCHED_BYTES', 'utf8');
+  const formalMetaPath = path.join(resourcesDir, '.antigravity_chinese_meta.json');
+
+  // 7a. 旧版预构建的 staged 面对官方升级后的新版 E，必须被判为 stale 且不覆盖 E
+  fs.copyFileSync(oldAsarForStaged, stagedPath);
   fs.writeFileSync(stagedMetaPath, JSON.stringify({
-    sourceFingerprint: oldAsarFp,
+    sourceFingerprint: oldFp,
     stagedFingerprint: getAsarFingerprint(stagedPath),
     timestamp: Date.now()
-  }), 'utf8');
+  }, null, 2), 'utf8');
+  fs.rmSync(oldAsarForStaged, { force: true });
 
-  // 模拟官方静默升级为全新版本 E
-  const origPreloadE = `"use strict";\n// Upstream official E\n`;
-  fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadE, 'utf8');
-  execSync(`${asarCli} pack "${mockSrcDir}" "${asarPath}"`, { stdio: 'ignore' });
-  const fpE = getAsarFingerprint(asarPath);
-
-  const staleRes = commitStagedSwap(asarPath);
+  const staleRes = commitStagedSwap(asarPath, { maxAttempts: 1, retryDelayMs: 0 });
   assert(staleRes.status === 'stale', 'staged 与官方新版 E 指纹不匹配时返回 stale');
   assert(!fs.existsSync(stagedPath) && !fs.existsSync(stagedMetaPath), '过期 staged 及元数据必须自动清理');
   assert(getAsarFingerprint(asarPath) === fpE, '过期 staged 绝不覆盖官方新版 E');
 
-  // 7b. 模拟来源匹配但写元数据阶段失败时的原子回滚
-  const validStagedBytes = Buffer.from('VALID_STAGED_PACKAGE_PAYLOAD');
-  fs.writeFileSync(stagedPath, validStagedBytes);
+  // 7b. 同外置布局的 A/B 官方包：在 install 解包之后、替换或重试期间官方更新为 B，必须中止且保留 B（绝不生成绑定 B 指纹的 A staged）
+  const origPreloadRaceB = `"use strict";
+const { contextBridge, ipcRenderer } = require('electron');
+contextBridge.exposeInMainWorld('api', { version: 'RACE_B_UNPACKED_IDENTICAL' });
+`;
+  const raceAAsar = path.join(resourcesDir, 'app.asar.raceA');
+  const raceBAsar = path.join(resourcesDir, 'app.asar.raceB');
+  fs.copyFileSync(asarPath, raceAAsar);
+  const fpRaceA = getAsarFingerprint(raceAAsar);
+  fs.writeFileSync(path.join(mockSrcDir, 'dist', 'preload.js'), origPreloadRaceB, 'utf-8');
+  runAsar(['pack', mockSrcDir, raceBAsar, '--unpack-dir', path.join('node_modules', 'external-tool')]);
+  const fpRaceB = getAsarFingerprint(raceBAsar);
+  assert(fpRaceA !== fpRaceB, '同外置布局 A 与 B 指纹不同');
+
+  // Case 7b-1: 解包后遭遇官方换包为 B + 文件锁 fallback，绝不允许写出绑定 B 指纹的 A 暂存包
+  fs.copyFileSync(raceAAsar, asarPath);
+  const afterExtractAborted = install(testDir, {
+    returnStatus: true,
+    throwOnConflict: true,
+    forceStagedFallback: true,
+    skipSpawnApplyStaged: true,
+    maxAttempts: 1,
+    retryDelayMs: 0,
+    onAfterExtract() {
+      fs.copyFileSync(raceBAsar, asarPath);
+    },
+    fsOps: {
+      renameSync() { const e = new Error('MOCK_EBUSY'); e.code = 'EBUSY'; throw e; },
+      writeFileSync: fs.writeFileSync.bind(fs)
+    }
+  });
+  assert(afterExtractAborted.status === 'aborted_upstream_update', '解包后若官方换为 B，安装必须立即中止');
+  assert(getAsarFingerprint(asarPath) === fpRaceB, '解包后官方换包为 B 必须完整保留 B');
+  assert(!fs.existsSync(stagedPath) && !fs.existsSync(stagedMetaPath), '解包后竞态中止绝不生成过时 staged');
+
+  // Case 7b-2: 在 swap 重试间隙（attempt === 1）官方换包为 B，必须立即中止并保留 B
+  fs.copyFileSync(raceAAsar, asarPath);
+  let retryHookCalls = 0;
+  const duringRetryAborted = install(testDir, {
+    returnStatus: true,
+    throwOnConflict: true,
+    forceStagedFallback: true,
+    skipSpawnApplyStaged: true,
+    maxAttempts: 2,
+    retryDelayMs: 0,
+    onBeforeSwapAttempt({ attempt }) {
+      retryHookCalls++;
+      if (attempt === 1) fs.copyFileSync(raceBAsar, asarPath);
+    },
+    fsOps: {
+      renameSync() { const e = new Error('MOCK_EBUSY'); e.code = 'EBUSY'; throw e; },
+      writeFileSync: fs.writeFileSync.bind(fs)
+    }
+  });
+  assert(retryHookCalls === 2 && duringRetryAborted.status === 'aborted_upstream_update', '替换重试期间发现官方换包为 B 必须中止');
+  assert(getAsarFingerprint(asarPath) === fpRaceB, '替换重试期间官方换包为 B 必须完整保留 B');
+  assert(!fs.existsSync(stagedPath) && !fs.existsSync(stagedMetaPath), '重试期间竞态中止绝不写入 staged');
+
+  // Case 7b-3: commitStagedSwap 重试间隙官方换包为 B，立即作废 staged 并保留 B
+  fs.copyFileSync(raceAAsar, asarPath);
+  fs.copyFileSync(raceAAsar, stagedPath);
   fs.writeFileSync(stagedMetaPath, JSON.stringify({
-    sourceFingerprint: fpE,
+    sourceFingerprint: fpRaceA,
     stagedFingerprint: getAsarFingerprint(stagedPath),
     timestamp: Date.now()
-  }), 'utf8');
-  const failRes = commitStagedSwap(asarPath, {
-    maxAttempts: 1,
-    onBeforeWriteMeta: () => { throw new Error('Simulated metadata write failure'); }
+  }, null, 2), 'utf8');
+  let swapAttempt = 0;
+  const swapRetryStale = commitStagedSwap(asarPath, {
+    maxAttempts: 2,
+    retryDelayMs: 0,
+    onBeforeSwapAttempt({ attempt }) {
+      swapAttempt++;
+      if (attempt === 1) fs.copyFileSync(raceBAsar, asarPath);
+    },
+    fsOps: {
+      renameSync() { const e = new Error('MOCK_EBUSY'); e.code = 'EBUSY'; throw e; },
+      writeFileSync: fs.writeFileSync.bind(fs)
+    }
   });
-  assert(failRes.status === 'error', '写元数据异常时返回 error 状态');
-  assert(getAsarFingerprint(asarPath) === fpE, '写入元数据异常时必须自动回滚保留原版 E');
-  assert(fs.existsSync(stagedPath), '失败回滚后 staged 保持完整不丢失');
-  fs.rmSync(stagedPath, { force: true });
-  fs.rmSync(stagedMetaPath, { force: true });
+  assert(swapAttempt === 2 && swapRetryStale.status === 'stale', 'commitStagedSwap 重试期间若官方升级为 B 应判 stale');
+  assert(getAsarFingerprint(asarPath) === fpRaceB && !fs.existsSync(stagedPath), 'commitStagedSwap 重试期遇升级应保留 B 并清理过期 staged');
 
-  // 7c. 受保护环境 (AGY_NO_KILL=1) 下传入 'y' 绝不触发强杀，只等待正常退出
+  // 7c. 模拟 .antigravity_chinese_meta.json 写入一半抛出 ENOSPC：旧元数据必须逐字完好、ASAR 自动回滚，且后台任务返回非零退出码
+  fs.copyFileSync(raceAAsar, asarPath);
+  const patchedDummyAsar = path.join(resourcesDir, 'app.asar.patched-dummy');
+  fs.copyFileSync(raceBAsar, patchedDummyAsar);
+  const fpPatchedDummy = getAsarFingerprint(patchedDummyAsar);
+  const priorFormalMeta = JSON.stringify({ patched: false, preservedMarker: 'INTACT_OLD_META' }, null, 2);
+  fs.writeFileSync(formalMetaPath, priorFormalMeta, 'utf8');
+  fs.copyFileSync(patchedDummyAsar, stagedPath);
+  fs.writeFileSync(stagedMetaPath, JSON.stringify({
+    sourceFingerprint: fpRaceA,
+    stagedFingerprint: fpPatchedDummy,
+    timestamp: Date.now()
+  }, null, 2), 'utf8');
+
+  const partialEnospcOutcome = applyStagedOnce(asarPath, {
+    maxAttempts: 1,
+    retryDelayMs: 0,
+    fsOps: {
+      renameSync: fs.renameSync.bind(fs),
+      writeFileSync(target, content, enc) {
+        fs.writeFileSync(target, String(content).slice(0, 12), enc);
+        const e = new Error('MOCK_ENOSPC');
+        e.code = 'ENOSPC';
+        throw e;
+      }
+    }
+  });
+  assert(partialEnospcOutcome.exitCode === 1 && partialEnospcOutcome.result.status === 'error', '元数据 ENOSPC 失败后后台入口必须返回非零退出码');
+  assert(partialEnospcOutcome.result.rollbackErrors.length === 0, 'ENOSPC 时两个 ASAR 重命名应干净回滚');
+  assert(getAsarFingerprint(asarPath) === fpRaceA, 'ENOSPC 回滚后正式路径必须仍是完整原包');
+  assert(fs.existsSync(stagedPath) && getAsarFingerprint(stagedPath) === fpPatchedDummy && fs.existsSync(stagedMetaPath), '回滚后 staged 及其元数据完好不丢失');
+  assert(fs.readFileSync(formalMetaPath, 'utf8') === priorFormalMeta, '部分写入 ENOSPC 后旧正式元数据必须逐字完好未被截断');
+
+  // 7d. 模拟回滚第一步或第二步遇文件锁失败：必须返回不可吞的诊断错误并保留所有可恢复包
+  const backupSnapshotContent = fs.readFileSync(backupPath);
+  const swapOldPath7 = path.join(resourcesDir, 'app.asar.swap-old');
+
+  const lockStep2Outcome = applyStagedOnce(asarPath, {
+    maxAttempts: 1,
+    retryDelayMs: 0,
+    fsOps: {
+      writeFileSync() { const e = new Error('MOCK_ENOSPC_RB2'); e.code = 'ENOSPC'; throw e; },
+      renameSync(from, to) {
+        if (from === swapOldPath7 && to === asarPath) {
+          const e = new Error('MOCK_LOCK_RESTORE_ORIGINAL'); e.code = 'EBUSY'; throw e;
+        }
+        return fs.renameSync(from, to);
+      }
+    }
+  });
+  assert(lockStep2Outcome.exitCode === 1 && lockStep2Outcome.result.status === 'error', '第二步回滚遇锁时后台入口返回非零退出码');
+  assert(lockStep2Outcome.result.rollbackErrors.length === 1 && lockStep2Outcome.result.rollbackErrors[0].step === 'restore_original', '应明确诊断第二步回滚失败');
+  assert(!fs.existsSync(asarPath) && fs.existsSync(swapOldPath7) && getAsarFingerprint(swapOldPath7) === fpRaceA, '第二步回滚受阻时 app.asar 缺失而原包仍在 swap-old');
+  assert(fs.existsSync(stagedPath) && fs.existsSync(stagedMetaPath), '第二步回滚受阻时 staged 与其元数据仍保留');
+  assert(fs.readFileSync(backupPath).equals(backupSnapshotContent), '故障过程中 .bak 保持原样不被破坏');
+
+  fs.renameSync(swapOldPath7, asarPath);
+
+  const lockStep1Outcome = applyStagedOnce(asarPath, {
+    maxAttempts: 1,
+    retryDelayMs: 0,
+    fsOps: {
+      writeFileSync() { const e = new Error('MOCK_ENOSPC_RB1'); e.code = 'ENOSPC'; throw e; },
+      renameSync(from, to) {
+        if (from === asarPath && to === stagedPath) {
+          const e = new Error('MOCK_LOCK_RESTORE_STAGED'); e.code = 'EPERM'; throw e;
+        }
+        return fs.renameSync(from, to);
+      }
+    }
+  });
+  assert(lockStep1Outcome.exitCode === 1 && lockStep1Outcome.result.status === 'error', '第一步回滚遇锁时后台入口返回非零退出码');
+  assert(lockStep1Outcome.result.rollbackErrors.length === 1 && lockStep1Outcome.result.rollbackErrors[0].step === 'restore_staged', '应明确诊断第一步回滚失败');
+  assert(getAsarFingerprint(asarPath) === fpPatchedDummy && !fs.existsSync(stagedPath), '第一步回滚受阻时正式路径仍为补丁且 staged 不存在');
+  assert(fs.existsSync(swapOldPath7) && getAsarFingerprint(swapOldPath7) === fpRaceA, '第一步回滚受阻时原包仍在 swap-old');
+  assert(fs.readFileSync(backupPath).equals(backupSnapshotContent), '第一步回滚受阻时 .bak 保持原样');
+  assert(fs.readFileSync(formalMetaPath, 'utf8') === priorFormalMeta, '所有写失败与回滚受阻场景下旧正式元数据完整保留');
+
+  // 7e. 验证真实子进程调用 applyStagedOnce 在遇写入错误时以非零退出码退出且保留完整原包与元数据
+  fs.rmSync(asarPath, { force: true });
+  fs.renameSync(swapOldPath7, asarPath);
+  fs.copyFileSync(patchedDummyAsar, stagedPath);
+  const brokenStagedChildRes = spawnSync(process.execPath, [
+    '-e',
+    `const cli = require(${JSON.stringify(cliPath)}); const o = cli.applyStagedOnce(${JSON.stringify(asarPath)}, { maxAttempts: 1, retryDelayMs: 0, fsOps: { writeFileSync() { const e = new Error('CHILD_ENOSPC'); e.code = 'ENOSPC'; throw e; }, renameSync: require('fs').renameSync } }); process.exit(o.exitCode);`
+  ], { encoding: 'utf8' });
+  assert(brokenStagedChildRes.status === 1, '子进程执行 applyStagedOnce 遇错误时以退出码 1 结束');
+  assert(getAsarFingerprint(asarPath) === fpRaceA && fs.readFileSync(formalMetaPath, 'utf8') === priorFormalMeta, '子进程失败后仍保持原包与旧元数据完整');
+
+  for (const cleanup of [stagedPath, stagedMetaPath, formalMetaPath, raceAAsar, raceBAsar, patchedDummyAsar, swapOldPath7]) {
+    if (fs.existsSync(cleanup)) fs.rmSync(cleanup, { force: true });
+  }
+
+  // 7f. 受保护环境 (AGY_NO_KILL=1) 下传入 'y' 绝不触发强杀，只等待正常退出
   let loopChecks = 0;
   let answerIdx = 0;
   const answers = ['y', 'q'];
@@ -327,7 +495,7 @@ contextBridge.exposeInMainWorld('api', { version: 'D_OFFICIAL_NEW_PRISTINE' });
     else process.env.AGY_NO_KILL = prevNoKill;
   }
 
-  // 7d. 只有 VS Code 扩展（无桌面版 app.asar）时的手动安装支持
+  // 7g. 只有 VS Code 扩展（无桌面版 app.asar）时的手动安装支持
   let vsPatchedCalled = false;
   manualInstall(null, {
     findAsarPath: () => null,

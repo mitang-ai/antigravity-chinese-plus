@@ -1,6 +1,6 @@
 {
   "name": "antigravity-chinese",
-  "version": "3.6.4",
+  "version": "3.6.5",
   "description": "Antigravity 桌面与 VS Code 扩展中文本地化、斜杠指令翻译、Google 详情实时翻译与备份还原工具 (Community Chinese localization and live translator)",
   "main": "cli.js",
   "homepage": "https://github.com/mitang-ai/antigravity-chinese-plus#readme",

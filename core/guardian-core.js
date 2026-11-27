@@ -259,16 +259,8 @@ function syncRuntimeFromDir(sourceDir, options = {}) {
           copyDirRecursiveSync(sDep, path.join(destNm, dep), { excludeNames: ['.git'] });
         }
       }
-      const srcBin = path.join(depSourceNm, '.bin');
-      if (fs.existsSync(srcBin)) {
-        const destBin = path.join(destNm, '.bin');
-        fs.mkdirSync(destBin, { recursive: true });
-        for (const f of fs.readdirSync(srcBin)) {
-          if (f.startsWith('asar')) {
-            fs.copyFileSync(path.join(srcBin, f), path.join(destBin, f));
-          }
-        }
-      }
+      // 不再复制 node_modules/.bin/asar* 符号链接（POSIX 下实体拷贝会破坏其 ../@electron/asar 相对路径），
+      // cli.js 已改用 Node 直接执行 @electron/asar/bin/asar.js，彻底跨平台兼容。
     }
 
     syncDirectoryResilient(stagingDir, runtimeDir, { moveFromSrc: true, excludeNames: ['.git'] });
