@@ -328,6 +328,7 @@ function readClientAppVersion(asarPath, options = {}) {
       if (fs.existsSync(asarModPath)) {
         const asarLib = require(asarModPath);
         const buf = asarLib.extractFile(asarPath, 'package.json');
+        try { if (typeof asarLib.uncache === 'function') asarLib.uncache(asarPath); } catch (_) {}
         const pkg = JSON.parse(buf.toString('utf8'));
         if (pkg && pkg.version) return String(pkg.version);
       }

@@ -1211,7 +1211,7 @@ function install(customPath, options = {}) {
 
     // 成功替换后，安全清理暂存原版与可能残留的预注入包
     if (fs.existsSync(swapOldAsar)) {
-      try { fs.rmSync(swapOldAsar, { force: true }); } catch (_) {}
+      try { fs.rmSync(swapOldAsar, { force: true, maxRetries: 6, retryDelay: 50 }); } catch (_) {}
     }
     const residualStagedAsar = path.join(resourcesDir, 'app.asar.staged');
     if (fs.existsSync(residualStagedAsar)) {

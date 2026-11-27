@@ -15,9 +15,17 @@ function waitTick(ms = 140) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+async function waitUntil(predicate, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (predicate()) return;
+    await waitTick(20);
+  }
+}
+
 test('Google live translator main service handles batching, fallback, and persistent cache', async t => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agy_live_cache_'));
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }));
 
   let fetchCalls = 0;
   const mockFetch = async url => {
@@ -148,11 +156,13 @@ test('Live translator translates plugin-detail markdown & prompts with inline co
   vm.runInContext(runtimeCode, ctx);
 
   // 初始化实时翻译器
-  const ctrl = createLiveTranslatorController({ bridge, document: window.document, window });
-  ctrl.start();
-  await waitTick(200);
-
   const doc = window.document;
+  const ctrl = createLiveTranslatorController({ bridge, document: doc, window });
+  ctrl.start();
+  await waitUntil(() =>
+    doc.querySelector('p.text-muted-foreground.leading-relaxed')?.textContent === '官方 Android 插件扩展说明。' &&
+    doc.querySelector('[data-testid="menu-option-description"]')?.textContent === '第三方远程技能说明文档。'
+  );
   // 1. 详情页内容与内嵌 <code> 保护验证
   assert.equal(doc.querySelector('p.text-muted-foreground.leading-relaxed').textContent, '官方 Android 插件扩展说明。');
   const promptRow = doc.querySelector('[data-testid="plugin-suggested-prompt-row"]');
@@ -223,7 +233,10 @@ test('Static dictionary translates built-in slash command descriptions including
 
   dom.window.__AGY_I18N_DATA__ = dictionary;
   vm.runInContext(runtimeCode, vm.createContext(dom.window));
-  await waitTick(30);
+  await waitUntil(() => {
+    const firstDesc = dom.window.document.querySelector('[data-testid="menu-option-description"]');
+    return firstDesc && firstDesc.textContent === '持续运行直到指定目标完全达成。';
+  });
 
   const opts = [...dom.window.document.querySelectorAll('[role="option"]')];
   assert.equal(opts[0].querySelector('[data-testid="menu-option-label"]').textContent, 'goal');

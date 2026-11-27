@@ -9,6 +9,20 @@ const guardian = require('../core/guardian-core');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
+function safeRmDir(dirPath) {
+  for (let i = 0; i < 15; i++) {
+    try {
+      if (fs.existsSync(dirPath)) {
+        fs.rmSync(dirPath, { recursive: true, force: true, maxRetries: 6, retryDelay: 50 });
+      }
+      return;
+    } catch (err) {
+      if (i === 14) throw err;
+      try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100); } catch (_) {}
+    }
+  }
+}
+
 test('compareSemver compares multi-part version strings accurately', () => {
   assert.equal(guardian.compareSemver('3.6.0', '3.5.0'), 1);
   assert.equal(guardian.compareSemver('v3.6.0', '3.6.0'), 0);
@@ -18,7 +32,7 @@ test('compareSemver compares multi-part version strings accurately', () => {
 
 test('syncRuntimeFromDir creates self-contained runtime with @electron/asar and manifest', t => {
   const tmpPlus = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-plus-home-'));
-  t.after(() => fs.rmSync(tmpPlus, { recursive: true, force: true }));
+  t.after(() => safeRmDir(tmpPlus));
 
   const res = guardian.syncRuntimeFromDir(REPO_ROOT, { plusHome: tmpPlus });
   assert.equal(res.version, require('../package.json').version);
@@ -35,7 +49,7 @@ test('syncRuntimeFromDir creates self-contained runtime with @electron/asar and 
 
 test('ensurePluginInstalledAndEnabled merges plugin enablement without clobbering existing config', t => {
   const tmpGemini = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-gemini-home-'));
-  t.after(() => fs.rmSync(tmpGemini, { recursive: true, force: true }));
+  t.after(() => safeRmDir(tmpGemini));
 
   const cfgPath = path.join(tmpGemini, 'config', 'config.json');
   fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
@@ -66,9 +80,11 @@ test('ensureLegacyTranslationPreserved builds staged package for simulated newly
   const asarLib = require('@electron/asar');
   const tmpPlus = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-plus-preserve-'));
   const tmpApp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-mock-client-'));
+  const mockAsar = path.join(tmpApp, 'resources', 'app.asar');
   t.after(() => {
-    fs.rmSync(tmpPlus, { recursive: true, force: true });
-    fs.rmSync(tmpApp, { recursive: true, force: true });
+    try { if (typeof asarLib.uncacheAll === 'function') asarLib.uncacheAll(); } catch (_) {}
+    safeRmDir(tmpPlus);
+    safeRmDir(tmpApp);
   });
 
   guardian.syncRuntimeFromDir(REPO_ROOT, { plusHome: tmpPlus });
@@ -78,7 +94,6 @@ test('ensureLegacyTranslationPreserved builds staged package for simulated newly
   fs.mkdirSync(path.join(srcExtract, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(srcExtract, 'package.json'), JSON.stringify({ name: 'antigravity', version: '2.99.0' }));
   fs.writeFileSync(path.join(srcExtract, 'dist', 'preload.js'), '"use strict";\n// clean upstream 2.99.0 preload\n');
-  const mockAsar = path.join(tmpApp, 'resources', 'app.asar');
   fs.mkdirSync(path.dirname(mockAsar), { recursive: true });
   await asarLib.createPackage(srcExtract, mockAsar);
 

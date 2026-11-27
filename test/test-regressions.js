@@ -767,8 +767,18 @@ test('settings, voice tooltip and connector placeholders translate in the live D
   const { window } = dom;
   window.__AGY_I18N_DATA__ = require('../dict/zh-CN.json');
   window.eval(fs.readFileSync(path.join(__dirname, '../core/i18n-runtime.js'), 'utf8'));
-  await new Promise(resolve => window.setTimeout(resolve, 40));
+  const waitDom = async (predicate, timeoutMs = 1500) => {
+    const end = Date.now() + timeoutMs;
+    while (Date.now() < end) {
+      if (predicate()) return;
+      await new Promise(resolve => window.setTimeout(resolve, 20));
+    }
+  };
   const doc = window.document;
+  await waitDom(() =>
+    doc.querySelector('h3')?.textContent === '下载位置' &&
+    doc.querySelector('#shortcut')?.getAttribute('aria-label') === '移除将语音麦克风静音的快捷键：Alt+M'
+  );
   assert.equal(doc.querySelector('h3').textContent, '下载位置');
   assert.equal(doc.querySelector('p').textContent, '内置浏览器下载文件的保存文件夹。');
   assert.equal(doc.querySelector('section button').textContent, '更改...');
@@ -785,12 +795,12 @@ test('settings, voice tooltip and connector placeholders translate in the live D
   popover.setAttribute('role', 'menu');
   popover.innerHTML = '<h3>Connectors</h3><span class="count">7 on for this conversation</span><p>1 tool</p>';
   doc.body.appendChild(popover);
-  await new Promise(resolve => window.setTimeout(resolve, 40));
+  await waitDom(() => popover.querySelector('p')?.textContent === '1 个工具');
   assert.equal(popover.querySelector('h3').textContent, '连接器');
   assert.equal(popover.querySelector('.count').textContent, '本会话已启用 7 项');
   assert.equal(popover.querySelector('p').textContent, '1 个工具');
   popover.querySelector('.count').firstChild.nodeValue = '0 on for this conversation';
-  await new Promise(resolve => window.setTimeout(resolve, 40));
+  await waitDom(() => popover.querySelector('.count')?.textContent === '本会话已启用 0 项');
   assert.equal(popover.querySelector('.count').textContent, '本会话已启用 0 项');
 });
 
