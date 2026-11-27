@@ -5,11 +5,12 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execFileSync } = require('child_process');
 const guardian = require('../core/guardian-core');
 
 const REPO_ROOT = path.resolve(__dirname, '..');
 
-function safeRmDir(dirPath) {
+async function safeRmDir(dirPath) {
   for (let i = 0; i < 15; i++) {
     try {
       if (fs.existsSync(dirPath)) {
@@ -18,7 +19,7 @@ function safeRmDir(dirPath) {
       return;
     } catch (err) {
       if (i === 14) throw err;
-      try { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 100); } catch (_) {}
+      await new Promise(resolve => setTimeout(resolve, 100));
     }
   }
 }
@@ -32,7 +33,7 @@ test('compareSemver compares multi-part version strings accurately', () => {
 
 test('syncRuntimeFromDir creates self-contained runtime with @electron/asar and manifest', t => {
   const tmpPlus = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-plus-home-'));
-  t.after(() => safeRmDir(tmpPlus));
+  t.after(async () => safeRmDir(tmpPlus));
 
   const res = guardian.syncRuntimeFromDir(REPO_ROOT, { plusHome: tmpPlus });
   assert.equal(res.version, require('../package.json').version);
@@ -49,7 +50,7 @@ test('syncRuntimeFromDir creates self-contained runtime with @electron/asar and 
 
 test('ensurePluginInstalledAndEnabled merges plugin enablement without clobbering existing config', t => {
   const tmpGemini = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-gemini-home-'));
-  t.after(() => safeRmDir(tmpGemini));
+  t.after(async () => safeRmDir(tmpGemini));
 
   const cfgPath = path.join(tmpGemini, 'config', 'config.json');
   fs.mkdirSync(path.dirname(cfgPath), { recursive: true });
@@ -78,24 +79,27 @@ test('ensurePluginInstalledAndEnabled merges plugin enablement without clobberin
 
 test('ensureLegacyTranslationPreserved builds staged package for simulated newly updated official asar', async t => {
   const asarLib = require('@electron/asar');
+  const asarPkgPath = require.resolve('@electron/asar/package.json');
+  const asarPkg = JSON.parse(fs.readFileSync(asarPkgPath, 'utf8'));
+  const asarEntry = path.resolve(path.dirname(asarPkgPath), typeof asarPkg.bin === 'string' ? asarPkg.bin : asarPkg.bin.asar);
   const tmpPlus = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-plus-preserve-'));
   const tmpApp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-mock-client-'));
   const mockAsar = path.join(tmpApp, 'resources', 'app.asar');
-  t.after(() => {
+  t.after(async () => {
     try { if (typeof asarLib.uncacheAll === 'function') asarLib.uncacheAll(); } catch (_) {}
-    safeRmDir(tmpPlus);
-    safeRmDir(tmpApp);
+    await safeRmDir(tmpPlus);
+    await safeRmDir(tmpApp);
   });
 
   guardian.syncRuntimeFromDir(REPO_ROOT, { plusHome: tmpPlus });
 
-  // 构建模拟官方刚升级的原生 app.asar（不含中文注入标记）
+  // 构建模拟官方刚升级的原生 app.asar（不含中文注入标记），通过子进程打包以确保 WriteStream 句柄彻底释放
   const srcExtract = path.join(tmpApp, 'raw');
   fs.mkdirSync(path.join(srcExtract, 'dist'), { recursive: true });
   fs.writeFileSync(path.join(srcExtract, 'package.json'), JSON.stringify({ name: 'antigravity', version: '2.99.0' }));
   fs.writeFileSync(path.join(srcExtract, 'dist', 'preload.js'), '"use strict";\n// clean upstream 2.99.0 preload\n');
   fs.mkdirSync(path.dirname(mockAsar), { recursive: true });
-  await asarLib.createPackage(srcExtract, mockAsar);
+  execFileSync(process.execPath, [asarEntry, 'pack', srcExtract, mockAsar], { stdio: 'ignore' });
 
   const prevPlus = process.env.AGY_PLUS_HOME;
   process.env.AGY_PLUS_HOME = tmpPlus;
